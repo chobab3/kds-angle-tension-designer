@@ -1405,18 +1405,24 @@ function openSectionDetail(rowIdx){
         <div class="ft">수평 + 수직 플랜지 동시 블록전단 파단 ★지배 (양면 접합)</div>
         <span class="fn">Rn = min(0.6 × Fu × Anv,total + Ubs × Fu × Ant,total, &nbsp; 0.6 × Fy × Agv,total + Ubs × Fu × Ant,total)</span><br><br>
         
-        <b style="color:var(--blue)">[수평 플랜지 기하학 성질]</b><br>
-        &nbsp;&nbsp;Lv,h = ${bd.h.sumLv}mm, nv,h = ${bd.h.sumHolesVolts}공제, Wt,h = ${bd.h.Wt}mm<br>
-        &nbsp;&nbsp;Agv,h = ${bd.h.Agv.toFixed(0)} mm², Anv,h = ${bd.h.Anv.toFixed(0)} mm², Ant,h = ${bd.h.Ant.toFixed(0)} mm²<br><br>
+        <b style="color:var(--orange)">[수평 플랜지 기하학 성질]</b><br>
+        • 전단면 치수: Lv,h = ${bd.h.sumLv}mm (Heel측 첫 행 기준, 구멍 nv,h = ${bd.h.sumHolesVolts}공제)<br>
+        &nbsp;&nbsp; Agv,h = Lv,h × t = ${bd.h.sumLv} × ${s.t} = ${bd.h.Agv.toFixed(0)} mm²<br>
+        &nbsp;&nbsp; Anv,h = (Lv,h - nv,h × dhole) × t = (${bd.h.sumLv} - ${bd.h.sumHolesVolts} × ${r2.dhole}) × ${s.t} = ${bd.h.Anv.toFixed(0)} mm²<br>
+        • 인장면 치수: 안쪽행 게이지 g1,h = ${bd.h.g1}mm (자유단 폭 Wt,h = B - g1,h = ${s.B} - ${bd.h.g1} = ${bd.h.Wt}mm, 구멍공제 nh - 0.5 = ${bd.h.n - 0.5})<br>
+        &nbsp;&nbsp; Ant,h = (Wt,h - (nh - 0.5) × dhole) × t = (${bd.h.Wt} - ${bd.h.n - 0.5} × ${r2.dhole}) × ${s.t} = ${bd.h.Ant.toFixed(0)} mm²<br><br>
         
         <b style="color:var(--blue)">[수직 플랜지 기하학 성질]</b><br>
-        &nbsp;&nbsp;Lv,v = ${bd.v.sumLv}mm, nv,v = ${bd.v.sumHolesVolts}공제, Wt,v = ${bd.v.Wt}mm<br>
-        &nbsp;&nbsp;Agv,v = ${bd.v.Agv.toFixed(0)} mm², Anv,v = ${bd.v.Anv.toFixed(0)} mm², Ant,v = ${bd.v.Ant.toFixed(0)} mm²<br><br>
+        • 전단면 치수: Lv,v = ${bd.v.sumLv}mm (Heel측 첫 행 기준, 구멍 nv,v = ${bd.v.sumHolesVolts}공제)<br>
+        &nbsp;&nbsp; Agv,v = Lv,v × t = ${bd.v.sumLv} × ${s.t} = ${bd.v.Agv.toFixed(0)} mm²<br>
+        &nbsp;&nbsp; Anv,v = (Lv,v - nv,v × dhole) × t = (${bd.v.sumLv} - ${bd.v.sumHolesVolts} × ${r2.dhole}) × ${s.t} = ${bd.v.Anv.toFixed(0)} mm²<br>
+        • 인장면 치수: 안쪽행 게이지 g1,v = ${bd.v.g1}mm (자유단 폭 Wt,v = g1,v = ${bd.v.Wt}mm, 구멍공제 nv - 0.5 = ${bd.v.n - 0.5})<br>
+        &nbsp;&nbsp; Ant,v = (Wt,v - (nv - 0.5) × dhole) × t = (${bd.v.Wt} - ${bd.v.n - 0.5} × ${r2.dhole}) × ${s.t} = ${bd.v.Ant.toFixed(0)} mm²<br><br>
         
-        <b style="color:var(--orange)">[합산 면적 (수평 + 수직)]</b><br>
-        &nbsp;&nbsp;Agv,total = Agv,h + Agv,v = ${bd.Agv.toFixed(0)} mm²<br>
-        &nbsp;&nbsp;Anv,total = Anv,h + Anv,v = ${bd.Anv.toFixed(0)} mm²<br>
-        &nbsp;&nbsp;Ant,total = Ant,h + Ant,v = ${bd.Ant.toFixed(0)} mm²<br><br>
+        <b style="color:var(--green)">[합산 면적 (수평 + 수직)]</b><br>
+        &nbsp;&nbsp; Agv,total = Agv,h + Agv,v = ${bd.h.Agv.toFixed(0)} + ${bd.v.Agv.toFixed(0)} = <span class="fv">${bd.Agv.toFixed(0)} mm²</span><br>
+        &nbsp;&nbsp; Anv,total = Anv,h + Anv,v = ${bd.h.Anv.toFixed(0)} + ${bd.v.Anv.toFixed(0)} = <span class="fv">${bd.Anv.toFixed(0)} mm²</span><br>
+        &nbsp;&nbsp; Ant,total = Ant,h + Ant,v = ${bd.h.Ant.toFixed(0)} + ${bd.v.Ant.toFixed(0)} = <span class="fv">${bd.Ant.toFixed(0)} mm²</span><br><br>
         
         • 한계상태 식 대입 (Ubs = 1.0):<br>
         &nbsp;&nbsp; 1) 전단파단+인장파단 = 0.6 × Fu × Anv,total + Ubs × Fu × Ant,total<br>
@@ -1733,29 +1739,44 @@ function openReport(){
       // 수평+수직 동시 파단 시 보고서 출력
       var isNG = bd.phiRn < r.Pu * 1000;
       var def = isNG ? (((r.Pu * 1000) - bd.phiRn) / (r.Pu * 1000) * 100).toFixed(1) : null;
-      var resText = '<div class="formula-block" style="border-left-color:'+(isNG?'var(--red)':'var(--green)')+'">';
-      resText += '<div class="ft">수평 + 수직 플랜지 동시 블록전단 파단 [★지배] (양면 접합)</div>';
-      resText += '<span class="fn">Rn = min(0.6 × Fu × Anv,total + Ubs × Fu × Ant,total, &nbsp; 0.6 × Fy × Agv,total + Ubs × Fu × Ant,total)</span><br><br>';
+      var resText = '';
       
-      resText += '<b style="color:var(--blue)">[수평 플랜지 기하학 성질]</b><br>';
-      resText += '&nbsp;&nbsp;Lv,h='+bd.h.sumLv+'mm, nv,h='+bd.h.sumHolesVolts+'개 구멍 공제<br>';
-      resText += '&nbsp;&nbsp;Agv,h = '+bd.h.Agv.toFixed(0)+' mm², Anv,h = '+bd.h.Anv.toFixed(0)+' mm², Ant,h = '+bd.h.Ant.toFixed(0)+' mm²<br><br>';
-      
-      resText += '<b style="color:var(--blue)">[수직 플랜지 기하학 성질]</b><br>';
-      resText += '&nbsp;&nbsp;Lv,v='+bd.v.sumLv+'mm, nv,v='+bd.v.sumHolesVolts+'개 구멍 공제<br>';
-      resText += '&nbsp;&nbsp;Agv,v = '+bd.v.Agv.toFixed(0)+' mm², Anv,v = '+bd.v.Anv.toFixed(0)+' mm², Ant,v = '+bd.v.Ant.toFixed(0)+' mm²<br><br>';
-      
-      resText += '<b style="color:var(--orange)">[합산 면적 (수평 + 수직)]</b><br>';
-      resText += '&nbsp;&nbsp;Agv,total = Agv,h + Agv,v = '+bd.Agv.toFixed(0)+' mm²<br>';
-      resText += '&nbsp;&nbsp;Anv,total = Anv,h + Anv,v = '+bd.Anv.toFixed(0)+' mm²<br>';
-      resText += '&nbsp;&nbsp;Ant,total = Ant,h + Ant,v = '+bd.Ant.toFixed(0)+' mm²<br><br>';
-      
-      resText += '• 한계강도 대입 (Ubs = 1.0):<br>';
-      resText += '&nbsp;&nbsp;1) 전단파단+인장파단 = 0.6 × '+r.Fu+' × '+bd.Anv.toFixed(0)+' + 1.0 × '+r.Fu+' × '+bd.Ant.toFixed(0)+' = <span class="fv">'+bd.Rn1.toFixed(0)+' N</span><br>';
-      resText += '&nbsp;&nbsp;2) 전단항복+인장파단 = 0.6 × '+r.Fy+' × '+bd.Agv.toFixed(0)+' + 1.0 × '+r.Fu+' × '+bd.Ant.toFixed(0)+' = <span class="fv">'+bd.Rn2.toFixed(0)+' N</span><br>';
-      resText += '• 공칭강도 Rn = min('+bd.Rn1.toFixed(0)+', '+bd.Rn2.toFixed(0)+') = '+bd.Rn.toFixed(0)+' N<br>';
-      resText += '• 설계강도 ΦRn = 0.75 × Rn = '+bd.phiRn.toFixed(0)+' N = '+bd.phiRn.toFixed(2)+' kN';
-      resText += '</div>';
+      // 1) 수평 플랜지 기하학 성질
+      resText += `<div class="formula-block" style="border-left-color:var(--orange); opacity:0.9;">
+        <div class="ft">수평 플랜지 블록전단 기하학 성질 (a행 기준)</div>
+        • 전단면 치수: Lv,h = ${bd.h.sumLv}mm (Heel측 첫 행 기준, 구멍 nv,h = ${bd.h.sumHolesVolts}공제)<br>
+        &nbsp;&nbsp; Agv,h = Lv,h × t = ${bd.h.sumLv} × ${s.t} = ${bd.h.Agv.toFixed(0)} mm²<br>
+        &nbsp;&nbsp; Anv,h = (Lv,h - nv,h × dhole) × t = (${bd.h.sumLv} - ${bd.h.sumHolesVolts} × ${r.dhole}) × ${s.t} = ${bd.h.Anv.toFixed(0)} mm²<br>
+        • 인장면 치수: 안쪽행 게이지 g1,h = ${bd.h.g1}mm (자유단 폭 Wt,h = B - g1,h = ${s.B} - ${bd.h.g1} = ${bd.h.Wt}mm, 구멍공제 nh - 0.5 = ${bd.h.n - 0.5})<br>
+        &nbsp;&nbsp; Ant,h = (Wt,h - (nh - 0.5) × dhole) × t = (${bd.h.Wt} - ${bd.h.n - 0.5} × ${r.dhole}) × ${s.t} = ${bd.h.Ant.toFixed(0)} mm²
+      </div>`;
+
+      // 2) 수직 플랜지 기하학 성질
+      resText += `<div class="formula-block" style="border-left-color:var(--blue); opacity:0.9;">
+        <div class="ft">수직 플랜지 블록전단 기하학 성질 (b행 기준)</div>
+        • 전단면 치수: Lv,v = ${bd.v.sumLv}mm (Heel측 첫 행 기준, 구멍 nv,v = ${bd.v.sumHolesVolts}공제)<br>
+        &nbsp;&nbsp; Agv,v = Lv,v × t = ${bd.v.sumLv} × ${s.t} = ${bd.v.Agv.toFixed(0)} mm²<br>
+        &nbsp;&nbsp; Anv,v = (Lv,v - nv,v × dhole) × t = (${bd.v.sumLv} - ${bd.v.sumHolesVolts} × ${r.dhole}) × ${s.t} = ${bd.v.Anv.toFixed(0)} mm²<br>
+        • 인장면 치수: 안쪽행 게이지 g1,v = ${bd.v.g1}mm (자유단 폭 Wt,v = g1,v = ${bd.v.Wt}mm, 구멍공제 nv - 0.5 = ${bd.v.n - 0.5})<br>
+        &nbsp;&nbsp; Ant,v = (Wt,v - (nv - 0.5) × dhole) × t = (${bd.v.Wt} - ${bd.v.n - 0.5} × ${r.dhole}) × ${s.t} = ${bd.v.Ant.toFixed(0)} mm²
+      </div>`;
+
+      // 3) 합산 및 최종 지배 강도
+      resText += `<div class="formula-block" style="border-left-color:${isNG?'var(--red)':'var(--green)'}">
+        <div class="ft">수평 + 수직 플랜지 합산 및 최종 설계강도 [★지배]</div>
+        <span class="fn">Rn = min(0.6 × Fu × Anv,total + Ubs × Fu × Ant,total, &nbsp; 0.6 × Fy × Agv,total + Ubs × Fu × Ant,total)</span><br><br>
+        • 합산 면적:<br>
+        &nbsp;&nbsp; Agv,total = Agv,h + Agv,v = ${bd.h.Agv.toFixed(0)} + ${bd.v.Agv.toFixed(0)} = <span class="fv">${bd.Agv.toFixed(0)} mm²</span><br>
+        &nbsp;&nbsp; Anv,total = Anv,h + Anv,v = ${bd.h.Anv.toFixed(0)} + ${bd.v.Anv.toFixed(0)} = <span class="fv">${bd.Anv.toFixed(0)} mm²</span><br>
+        &nbsp;&nbsp; Ant,total = Ant,h + Ant,v = ${bd.h.Ant.toFixed(0)} + ${bd.v.Ant.toFixed(0)} = <span class="fv">${bd.Ant.toFixed(0)} mm²</span><br><br>
+        • 한계강도 대입 (Ubs = 1.0):<br>
+        &nbsp;&nbsp; 1) 전단파단+인장파단 = 0.6 × ${r.Fu} × ${bd.Anv.toFixed(0)} + 1.0 × ${r.Fu} × ${bd.Ant.toFixed(0)} = <span class="fv">${bd.Rn1.toFixed(0)} N</span><br>
+        &nbsp;&nbsp; 2) 전단항복+인장파단 = 0.6 × ${r.Fy} × ${bd.Agv.toFixed(0)} + 1.0 × ${r.Fu} × ${bd.Ant.toFixed(0)} = <span class="fv">${bd.Rn2.toFixed(0)} N</span><br>
+        • 공칭강도 Rn = min(${bd.Rn1.toFixed(0)}, ${bd.Rn2.toFixed(0)}) = ${bd.Rn.toFixed(0)} N<br>
+        • 설계강도 ΦRn = 0.75 × Rn = ${(bd.phiRn*1000).toFixed(0)} N = ${bd.phiRn.toFixed(2)} kN<br>
+        ${isNG ? `<span class="fdim">✗ ${bd.phiRn.toFixed(2)} &lt; Pu ${r.Pu.toFixed(2)}kN → NG (${def}% 부족)</span>`
+             : `<span class="fres">✓ ${bd.phiRn.toFixed(2)} ≥ Pu ${r.Pu.toFixed(2)}kN → OK</span>`}
+      </div>`;
       html += resText;
     } else {
       // 단일 플랜지 파단 시 보고서 출력
