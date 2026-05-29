@@ -1494,28 +1494,6 @@ function openSectionDetail(rowIdx){
         ${isNG ? `<span class="fdim">✗ ${(bd.phiRn/1000).toFixed(2)} &lt; Pu ${Pu.toFixed(2)}kN → NG (${def}% 부족)</span>`
              : `<span class="fres">✓ ${(bd.phiRn/1000).toFixed(2)} ≥ Pu ${Pu.toFixed(2)}kN → OK</span>`}
       </div>`;
-    } else {
-      // 단일 플랜지 파단 시 기존 시각화
-      const isNG = bd.phiRn < Pu * 1000;
-      const def = isNG ? (((Pu * 1000) - bd.phiRn) / (Pu * 1000) * 100).toFixed(1) : null;
-      html += `<div class="formula-block" style="border-left-color:${isNG ? 'var(--red)' : 'var(--green)'}">
-        <div class="ft">${bd.type==='h'?'수평 플랜지':'수직 플랜지'} 블록전단 강도 ★지배</div>
-        <span class="fn">Rn = min(0.6 × Fu × Anv + Ubs × Fu × Ant, &nbsp; 0.6 × Fy × Agv + Ubs × Fu × Ant)</span><br>
-        • 전단면적: Lv=${bd.sumLv}mm (Heel측 첫 행 기준, 구멍 nv=${bd.sumHolesVolts})<br>
-        &nbsp;&nbsp; Agv = Lv × t = ${bd.sumLv} × ${s.t} = ${bd.Agv.toFixed(0)} mm²<br>
-        &nbsp;&nbsp; Anv = (Lv - nv × dhole) × t = (${bd.sumLv} - ${bd.sumHolesVolts} × ${r2.dhole}) × ${s.t} = ${bd.Anv.toFixed(0)} mm²<br>
-        • 인장면적: 안쪽행 게이지 g1=${bd.g1}mm (자유단 폭 Wt = B - g1 = ${s.B} - ${bd.g1} = ${bd.Wt}mm, 구멍공제 n-0.5=${bd.n-0.5})<br>
-        &nbsp;&nbsp; Ant = (Wt - (n - 0.5) × dhole) × t = (${bd.Wt} - ${bd.n - 0.5} × ${r2.dhole}) × ${s.t} = ${bd.Ant.toFixed(0)} mm²<br>
-        • 한계상태 식 대입 (Ubs=${bd.Ubs.toFixed(1)}):<br>
-        &nbsp;&nbsp; 1) 전단파단+인장파단 = 0.6 × Fu × Anv + Ubs × Fu × Ant<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 0.6 × ${r2.Fu} × ${bd.Anv.toFixed(0)} + ${bd.Ubs.toFixed(1)} × ${r2.Fu} × ${bd.Ant.toFixed(0)} = <span class="fv">${bd.Rn1.toFixed(0)} N</span><br>
-        &nbsp;&nbsp; 2) 전단항복+인장파단 = 0.6 × Fy × Agv + Ubs × Fu × Ant<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 0.6 × ${r2.Fy} × ${bd.Agv.toFixed(0)} + ${bd.Ubs.toFixed(1)} × ${r2.Fu} × ${bd.Ant.toFixed(0)} = <span class="fv">${bd.Rn2.toFixed(0)} N</span><br>
-        • 공칭강도 Rn = min(${bd.Rn1.toFixed(0)}, ${bd.Rn2.toFixed(0)}) = ${bd.Rn.toFixed(0)} N<br>
-        • 설계강도 ΦRn = 0.75 × Rn = ${bd.phiRn.toFixed(0)} N = ${(bd.phiRn/1000).toFixed(2)} kN<br>
-        ${isNG ? `<span class="fdim">✗ ${(bd.phiRn/1000).toFixed(2)} &lt; Pu ${Pu.toFixed(2)}kN → NG (${def}% 부족)</span>`
-             : `<span class="fres">✓ ${(bd.phiRn/1000).toFixed(2)} ≥ Pu ${Pu.toFixed(2)}kN → OK</span>`}
-      </div>`;
     }
   }
 
