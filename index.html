@@ -764,16 +764,13 @@ function calcBlockShear(sec, boltDiam, Fy, Fu, type) {
   const flRows = rows.filter(r => r.type === type).sort((a, b) => a.g - b.g);
   if (flRows.length === 0) return null;
 
+  // 전단 파단선은 Heel에 가장 가까운 첫 번째 행(flRows[0])만 고려
+  const primaryRow = flRows[0];
   let sumLv = 0;
-  let sumHolesVolts = 0;
-  flRows.forEach(row => {
-    let Lv = 0;
-    row.bolts.forEach(b => {
-      Lv += b.ep;
-    });
-    sumLv += Lv;
-    sumHolesVolts += (row.bolts.length - 0.5);
+  primaryRow.bolts.forEach(b => {
+    sumLv += b.ep;
   });
+  const sumHolesVolts = primaryRow.bolts.length - 0.5;
 
   const Agv = sumLv * sec.t;
   const Anv = Math.max(0, (sumLv - sumHolesVolts * dhole) * sec.t);
@@ -1438,7 +1435,7 @@ function openSectionDetail(rowIdx){
       html += `<div class="formula-block" style="border-left-color:${isNG ? 'var(--red)' : 'var(--green)'}">
         <div class="ft">${bd.type==='h'?'수평 플랜지':'수직 플랜지'} 블록전단 강도 ★지배</div>
         <span class="fn">Rn = min(0.6 × Fu × Anv + Ubs × Fu × Ant, &nbsp; 0.6 × Fy × Agv + Ubs × Fu × Ant)</span><br>
-        • 전단면적: Lv=${bd.sumLv}mm (행수 n=${bd.n}, 구멍 nv=${bd.sumHolesVolts})<br>
+        • 전단면적: Lv=${bd.sumLv}mm (Heel측 첫 행 기준, 구멍 nv=${bd.sumHolesVolts})<br>
         &nbsp;&nbsp; Agv = Lv × t = ${bd.sumLv} × ${s.t} = ${bd.Agv.toFixed(0)} mm²<br>
         &nbsp;&nbsp; Anv = (Lv - nv × dhole) × t = (${bd.sumLv} - ${bd.sumHolesVolts} × ${r2.dhole}) × ${s.t} = ${bd.Anv.toFixed(0)} mm²<br>
         • 인장면적: 안쪽행 게이지 g1=${bd.g1}mm (자유단 폭 Wt = B - g1 = ${s.B} - ${bd.g1} = ${bd.Wt}mm, 구멍공제 n-0.5=${bd.n-0.5})<br>
@@ -1769,7 +1766,7 @@ function openReport(){
       var resText = '<div class="formula-block" style="border-left-color:'+(isGov?'var(--green)':'var(--border2)')+'; '+(!isGov?'opacity:0.7':'')+'">';
       resText += '<div class="ft">'+titleText+' 블록전단 강도 '+(isGov?'[★지배]':'')+'</div>';
       resText += '<span class="fn">Rn = min(0.6 × Fu × Anv + Ubs × Fu × Ant, &nbsp; 0.6 × Fy × Agv + Ubs × Fu × Ant)</span><br>';
-      resText += '• 전단면 치수: Lv='+bd.sumLv+'mm, nv='+bd.sumHolesVolts+'개 구멍 공제<br>';
+      resText += '• 전단면 치수: Lv='+bd.sumLv+'mm (Heel측 첫 행 기준), nv='+bd.sumHolesVolts+'개 구멍 공제<br>';
       resText += '&nbsp;&nbsp;Agv = Lv × t = '+bd.sumLv+' × '+s.t+' = '+bd.Agv.toFixed(0)+' mm²<br>';
       resText += '&nbsp;&nbsp;Anv = (Lv - nv × dhole) × t = ('+bd.sumLv+' - '+bd.sumHolesVolts+' × '+r.dhole+') × '+s.t+' = '+bd.Anv.toFixed(0)+' mm²<br>';
       resText += '• 인장면 치수: 안쪽행 게이지 g1='+bd.g1+'mm, Wt = B - g1 = '+s.B+' - '+bd.g1+' = '+bd.Wt+'mm, 구멍공제='+(bd.n-0.5)+'<br>';
