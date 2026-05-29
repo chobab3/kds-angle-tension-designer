@@ -1472,12 +1472,38 @@ function openSectionDetail(rowIdx){
   let LconnD=0; if(hRowD) for(let i=1;i<hRowD.bolts.length;i++) LconnD+=hRowD.bolts[i].ep;
   if(LconnD===0) LconnD=hRowD?.bolts[0]?.ep||50;
 
+  let AnDetailHtml = '';
+  if (r2.netCalc && r2.netCalc.critPath) {
+    const cpD = r2.netCalc.critPath;
+    const holesD = cpD.pathNodes.length;
+    const subHolesD = holesD * r2.dhole * s.t;
+    let corrSumD = 0;
+    let corrPartsD = [];
+    if (cpD.segDetails) {
+      cpD.segDetails.forEach(sg => {
+        if (sg.corr > 0.1) {
+          corrPartsD.push(`(${sg.s}²/(4×${sg.g})×${s.t})`);
+          corrSumD += sg.corr;
+        }
+      });
+    }
+    const corrTextD = corrPartsD.length > 0 ? ' + ' + corrPartsD.join(' + ') : '';
+    const corrSumValTextD = corrSumD > 0.1 ? ` + <span class="fv">${corrSumD.toFixed(1)}mm²</span> (지그재그 보정)` : '';
+    
+    AnDetailHtml = `• 임계 파단 경로: <span class="fv">${cpD.label}</span> (구멍수 N = <span class="fv">${holesD}</span>개)<br>
+    &nbsp;&nbsp; An = Ag − N × dhole × t + Σ[s²/(4g)×t]<br>
+    &nbsp;&nbsp; An = ${s.Ag} − (${holesD} × ${r2.dhole} × ${s.t})${corrTextD}<br>
+    &nbsp;&nbsp; An = ${s.Ag} − ${subHolesD.toFixed(1)}${corrSumValTextD} = <span class="fv">${r2.An_min.toFixed(1)}mm²</span><br>`;
+  } else {
+    AnDetailHtml = `An,min = <span class="fv">${r2.An_min.toFixed(1)}mm²</span><br>`;
+  }
+
   html+=`<div class="sub-title">② 순단면 파단 (Net Section Fracture)</div>
   <div class="formula-block" style="border-left-color:${ng2?'var(--red)':'var(--orange)'}">
     <div class="ft">KDS 41 31 00 LS②</div>
     <span class="fn">ΦPn2 = 0.75 × Fu × Ae</span><br>
-    dhole = M${d}+(${d<=22?2:3}) = <span class="fv">${r2.dhole}mm</span><br>
-    An,min = <span class="fv">${r2.An_min.toFixed(1)}mm²</span>${r2.netCalc.critPath?`  (임계: ${r2.netCalc.critPath.label.substring(0,60)}…)`:''}<br>
+    dhole = M${d}+(${d<=22?2:3}) = <span class="fv">${r2.dhole}mm</span> (t = <span class="fv">${s.t}mm</span>, Ag = <span class="fv">${s.Ag}mm²</span>)<br>
+    ${AnDetailHtml}
     ${connType==='double'
       ?`U = 1.0 (양면 접합)`
       :`U = 1−(${s.Cx}/${LconnD}) = <span class="fv">${r2.U.toFixed(4)}</span>`}<br>
@@ -1818,12 +1844,39 @@ function openReport(){
 
   // ④ 전단지연 U · Ae
   html+='<div class="sub-title">④ 전단지연계수 U · 유효순단면적 Ae</div>';
+
+  if (nc.critPath) {
+    var cp = nc.critPath;
+    var holes = cp.pathNodes.length;
+    var subHoles = holes * r.dhole * s.t;
+    var corrValSum = cp.corrTotal || 0;
+    var corrTextParts = [];
+    if (cp.segDetails) {
+      cp.segDetails.forEach(function(sg) {
+        if (sg.corr > 0.01) {
+          corrTextParts.push('(' + sg.s + '²/(4×' + sg.g + ')×' + s.t + ')');
+        }
+      });
+    }
+    var corrText = corrTextParts.length > 0 ? ' + ' + corrTextParts.join(' + ') : '';
+    var corrSumValText = corrValSum > 0.01 ? ' + <span class="fv">' + corrValSum.toFixed(1) + ' mm²</span> (지그재그 보정)' : '';
+
+    html+='<div class="formula-block" style="border-left-color:var(--blue)">';
+    html+='<div class="ft">임계 순단면적 산정 (Net Area, An,min)</div>';
+    html+='임계 파단 경로: <span class="fv" style="font-weight:600">' + cp.pathNodes.map(function(nd){return nd.boltId;}).join(' → ') + '</span> (구멍수 N = <span class="fv">' + holes + '</span>개)<br>';
+    html+='<span class="fn">An = Ag − N × dhole × t' + (corrTextParts.length > 0 ? ' + Σ[s²/(4g)×t]' : '') + '</span><br>';
+    html+='An = ' + s.Ag + ' − (' + holes + ' × ' + r.dhole + ' × ' + s.t + ')' + corrText + '<br>';
+    html+='An = ' + s.Ag + ' − ' + subHoles.toFixed(1) + corrSumValText + ' = <span class="fres" style="font-size:13px;font-weight:700">' + nc.minAn.toFixed(1) + ' mm²</span>';
+    html+='</div>';
+  }
+
   var hRowForU=rows.filter(function(rw){return rw.type==='h';}).sort(function(a,b){return a.g-b.g;})[0];
   var LconnDetail=0;
   if(hRowForU) for(var i=1;i<hRowForU.bolts.length;i++) LconnDetail+=hRowForU.bolts[i].ep;
   if(LconnDetail===0) LconnDetail=(hRowForU&&hRowForU.bolts[0])?hRowForU.bolts[0].ep:50;
 
-  html+='<div class="formula-block">';
+  html+='<div class="formula-block" style="border-left-color:var(--orange)">';
+  html+='<div class="ft">지연전단계수 및 유효순단면적 (U & Ae)</div>';
   if(connType==='double'){
     html+='양면 접합 → U = <span class="fres">1.0</span> (전단지연 없음)';
   } else {
