@@ -779,7 +779,7 @@ function calcBlockShear(sec, boltDiam, Fy, Fu, type) {
   const Anv = Math.max(0, (sumLv - sumHolesVolts * dhole) * sec.t);
 
   const g1 = flRows[0].g;
-  const Wt = sec.B - g1;
+  const Wt = type === 'h' ? (sec.B - g1) : g1;
   const n = flRows.length;
   const Ant = Math.max(0, (Wt - (n - 0.5) * dhole) * sec.t);
 
