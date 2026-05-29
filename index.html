@@ -773,11 +773,23 @@ function calcBlockShear(sec, boltDiam, Fy, Fu, type) {
   const n = flRows.length;
   const Ubs = 1.0;
 
-  // 1) 기본 시나리오 (사선 없이 마지막 볼트에서 다이렉트 수직/자유단 파단)
-  let bestRn = Infinity;
-  let bestResult = null;
+  // 1) 지그재그(Staggered) 배치 여부 판정
+  let hasStaggeredLayout = false;
+  if (flRows.length >= 2) {
+    const adjRow = flRows[1];
+    if (Math.abs(primaryRow.bolts[0].ep - adjRow.bolts[0].ep) > 0.1) {
+      hasStaggeredLayout = true;
+    }
+    let cx0_temp = 0;
+    const x0_temp = primaryRow.bolts.map(b => { cx0_temp += b.ep; return cx0_temp; });
+    let cx1_temp = 0;
+    const x1_temp = adjRow.bolts.map(b => { cx1_temp += b.ep; return cx1_temp; });
+    if (x0_temp[x0_temp.length - 1] !== x1_temp[x1_temp.length - 1]) {
+      hasStaggeredLayout = true;
+    }
+  }
 
-  // 기본 시나리오 전단 계산
+  // 2) 기본 시나리오 (사선 없는 일반 파단)
   let defaultSumLv = 0;
   primaryRow.bolts.forEach(b => { defaultSumLv += b.ep; });
   const defaultSumHolesVolts = primaryRow.bolts.length - 0.5;
@@ -792,43 +804,47 @@ function calcBlockShear(sec, boltDiam, Fy, Fu, type) {
   const defaultRn2 = 0.6 * Fy * defaultAgv + Ubs * Fu * defaultAnt;
   const defaultRn = Math.min(defaultRn1, defaultRn2);
 
-  bestRn = defaultRn;
-  bestResult = {
-    type,
-    g1,
-    Wt,
-    n,
-    sumLv: defaultSumLv,
-    sumHolesVolts: defaultSumHolesVolts,
-    Agv: defaultAgv,
-    Anv: defaultAnv,
-    Ant_raw: defaultAnt,
-    Ant: defaultAnt,
-    Ubs,
-    Rn1: defaultRn1,
-    Rn2: defaultRn2,
-    Rn: defaultRn,
-    phiRn: 0.75 * defaultRn,
-    isStaggered: false,
-    s_val: 0,
-    g_val: 0,
-    staggerCorr: 0
-  };
+  let bestRn = Infinity;
+  let bestResult = null;
 
-  // 2) 지그재그 시나리오 검사 (flRows.length >= 2 인 경우)
+  // 만약 지그재그 배치가 아니라면 기본 시나리오를 결과로 선택
+  if (!hasStaggeredLayout) {
+    bestRn = defaultRn;
+    bestResult = {
+      type,
+      g1,
+      Wt,
+      n,
+      sumLv: defaultSumLv,
+      sumHolesVolts: defaultSumHolesVolts,
+      Agv: defaultAgv,
+      Anv: defaultAnv,
+      Ant_raw: defaultAnt,
+      Ant: defaultAnt,
+      Ubs,
+      Rn1: defaultRn1,
+      Rn2: defaultRn2,
+      Rn: defaultRn,
+      phiRn: 0.75 * defaultRn,
+      isStaggered: false,
+      s_val: 0,
+      g_val: 0,
+      staggerCorr: 0
+    };
+  }
+
+  // 3) 지그재그 시나리오 검사 (지배 블록전단 강도 탐색)
   if (flRows.length >= 2) {
     const adjRow = flRows[1];
     const g_diff = Math.abs(adjRow.g - primaryRow.g);
 
     if (g_diff > 0.1) {
-      // primaryRow의 x 좌표 목록 구하기
       let cx0 = 0;
       const x0 = primaryRow.bolts.map(b => { cx0 += b.ep; return cx0; });
 
-      // adjRow의 x 좌표 목록 구하기
       let cx1 = 0;
       const x1 = adjRow.bolts.map(b => { cx1 += b.ep; return cx1; });
-      const x1_last = x1[x1.length - 1]; // 인접 행의 마지막 볼트 x좌표
+      const x1_last = x1[x1.length - 1];
 
       // primaryRow의 각 볼트 i에서 adjRow의 마지막 볼트(x1_last)로 사선 이동하는 경우 검사
       for (let i = 0; i < x0.length; i++) {
@@ -837,13 +853,11 @@ function calcBlockShear(sec, boltDiam, Fy, Fu, type) {
           const s = x1_last - x0_i;
           const staggerCorr = (s * s) / (4 * g_diff) * sec.t;
 
-          // 이 시나리오 하에서의 전단 치수
           const sumLv_i = x0_i;
-          const sumHolesVolts_i = i + 0.5; // i번 볼트(0-based)까지이므로 실제 볼트 개수는 i+1개, 마지막은 반공제이므로 i+0.5
+          const sumHolesVolts_i = i + 0.5;
           const Agv_i = sumLv_i * sec.t;
           const Anv_i = Math.max(0, (sumLv_i - sumHolesVolts_i * dhole) * sec.t);
 
-          // 인장 순면적 (기본 Ant + staggerCorr)
           const Ant_raw_i = (Wt - (n - 0.5) * dhole) * sec.t;
           const Ant_i = Math.max(0, Ant_raw_i + staggerCorr);
 
@@ -851,7 +865,6 @@ function calcBlockShear(sec, boltDiam, Fy, Fu, type) {
           const Rn2_i = 0.6 * Fy * Agv_i + Ubs * Fu * Ant_i;
           const Rn_i = Math.min(Rn1_i, Rn2_i);
 
-          // 더 최소의 지배강도를 주는 시나리오를 선택
           if (Rn_i < bestRn) {
             bestRn = Rn_i;
             bestResult = {
@@ -879,6 +892,31 @@ function calcBlockShear(sec, boltDiam, Fy, Fu, type) {
         }
       }
     }
+  }
+
+  // 지그재그 배치임에도 사선 경로가 검출되지 않은 특수한 레이아웃인 경우에 대한 대비책
+  if (bestResult === null) {
+    bestResult = {
+      type,
+      g1,
+      Wt,
+      n,
+      sumLv: defaultSumLv,
+      sumHolesVolts: defaultSumHolesVolts,
+      Agv: defaultAgv,
+      Anv: defaultAnv,
+      Ant_raw: defaultAnt,
+      Ant: defaultAnt,
+      Ubs,
+      Rn1: defaultRn1,
+      Rn2: defaultRn2,
+      Rn: defaultRn,
+      phiRn: 0.75 * defaultRn,
+      isStaggered: false,
+      s_val: 0,
+      g_val: 0,
+      staggerCorr: 0
+    };
   }
 
   return bestResult;
