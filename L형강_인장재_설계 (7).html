@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L형강 인장재 자동 설계 | KDS 41 31 00</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--bg4:#30363d;
+  --border:#30363d;--border2:#3d444d;
+  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --accent:#f78166;--accent2:#ff7b72;
+  --blue:#58a6ff;--green:#3fb950;--yellow:#d29922;
+  --red:#f85149;--purple:#bc8cff;--orange:#ffa657;
+  --radius:6px;--shadow:0 8px 32px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;line-height:1.5;min-height:100vh;}
+
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:11px 22px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+.header-badge{background:var(--accent);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;padding:2px 8px;border-radius:2px;letter-spacing:.05em;}
+.header h1{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;}
+.header-sub{font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-left:auto;}
+
+/* 레이아웃: 전체 100vh — 여백 없이 꽉 채움 */
+html,body{height:100%;overflow:hidden;}
+.app{display:grid;grid-template-rows:62vh 1fr;height:calc(100vh - 46px);overflow:hidden;}
+.app-top{display:grid;grid-template-columns:390px 1fr 250px;height:100%;overflow:hidden;min-height:0;}
+.app-bottom{overflow-y:auto;border-top:1px solid var(--border);background:var(--bg);height:100%;min-height:0;}
+
+.panel-left{background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;height:100%;}
+.panel-front{background:var(--bg);border-right:1px solid var(--border);padding:8px 12px;overflow:hidden;height:100%;display:flex;flex-direction:column;}
+.panel-side{background:var(--bg);padding:8px 10px;overflow:hidden;height:100%;display:flex;flex-direction:column;}
+.panel-result{padding:0 14px 14px;}
+
+.section{border-bottom:1px solid var(--border);padding:11px 13px;}
+.section-title{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.section-title::before{content:'';width:3px;height:10px;background:var(--accent);border-radius:1px;}
+
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px;}
+.form-group{display:flex;flex-direction:column;gap:3px;}
+label{font-size:10px;color:var(--text2);font-family:'IBM Plex Mono',monospace;}
+input[type="number"],select{background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:4px 7px;border-radius:var(--radius);font-size:11px;font-family:'IBM Plex Mono',monospace;width:100%;outline:none;transition:border-color .15s;}
+input[type="number"]:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(88,166,255,.1);}
+input.warn-input{border-color:var(--yellow)!important;}
+input.err-input{border-color:var(--red)!important;}
+select option{background:var(--bg3);}
+
+.radio-group{display:flex;gap:5px;}
+.radio-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:4px 6px;border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-size:11px;color:var(--text2);transition:all .15s;}
+.radio-btn input{display:none;}
+.radio-btn.active{border-color:var(--blue);background:rgba(88,166,255,.08);color:var(--blue);}
+
+/* Bolt layout: top row (수직 플랜지) / bottom row (수평 플랜지) */
+.flange-block{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:8px;margin-bottom:6px;}
+.flange-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;display:flex;align-items:center;gap:6px;}
+.flange-label span{font-size:12px;}
+
+/* bolt row: id | e/p-input | g-input | validation | remove */
+.bolt-row{display:grid;grid-template-columns:26px 1fr 1fr 1fr 18px;gap:4px;align-items:start;margin-bottom:4px;}
+.bolt-id{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);text-align:center;padding-top:3px;}
+.bolt-row input{padding:3px 5px;font-size:10px;}
+.bolt-remove{background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0;line-height:1;text-align:center;padding-top:3px;}
+.bolt-remove:hover{color:var(--red);}
+
+.val-badge{font-family:'IBM Plex Mono',monospace;font-size:9px;padding:2px 4px;border-radius:3px;white-space:nowrap;line-height:1.3;}
+.val-ok{background:rgba(63,185,80,.12);color:var(--green);}
+.val-warn{background:rgba(210,153,34,.12);color:var(--yellow);}
+.val-err{background:rgba(248,81,73,.12);color:var(--red);}
+
+.btn-small{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:3px 9px;border-radius:var(--radius);cursor:pointer;font-size:10px;font-family:'IBM Plex Mono',monospace;transition:all .15s;}
+.btn-small:hover{background:var(--bg3);border-color:var(--blue);color:var(--blue);}
+
+.btn-primary{width:100%;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;font-family:'Space Grotesk',sans-serif;cursor:pointer;transition:all .15s;}
+.btn-primary:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(247,129,102,.3);}
+
+.btn-report{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;background:var(--bg3);color:var(--blue);border:1px solid var(--blue);border-radius:var(--radius);font-size:10px;font-family:'IBM Plex Mono',monospace;cursor:pointer;transition:all .15s;}
+.btn-report:hover{background:rgba(88,166,255,.1);}
+
+.canvas-title{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;text-align:center;flex-shrink:0;}
+.panel-front svg,.panel-side svg{flex:1;width:100%;min-height:0;display:block;}
+svg{display:block;}
+
+.result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:7px;padding:8px 0;}
+.result-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:8px;}
+.result-card.optimal{border-color:var(--green);background:rgba(63,185,80,.05);}
+.rc-label{font-size:8px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em;}
+.rc-value{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;}
+.rc-unit{font-size:8px;color:var(--text3);margin-left:2px;}
+.rc-check{font-size:9px;margin-top:2px;font-family:'IBM Plex Mono',monospace;}
+.ok{color:var(--green);}.info{color:var(--blue);}.warn{color:var(--yellow);}
+
+.optimal-banner{background:linear-gradient(135deg,rgba(63,185,80,.1),rgba(57,211,83,.05));border:1px solid var(--green);border-radius:var(--radius);padding:10px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;}
+.optimal-banner .sname{font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;color:var(--green);}
+
+.table-wrap{overflow-x:auto;margin-top:8px;}
+table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:10px;}
+th{background:var(--bg3);border:1px solid var(--border);padding:4px 7px;color:var(--text2);text-align:center;font-weight:500;white-space:nowrap;}
+td{border:1px solid var(--border);padding:3px 7px;text-align:center;white-space:nowrap;}
+tr.critical-row td{background:rgba(248,81,73,.1);color:var(--red);font-weight:500;}
+tr.optimal-row td{background:rgba(63,185,80,.08);color:var(--green);}
+tr:hover td{background:rgba(255,255,255,.02);}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:8px;width:100%;max-width:980px;margin:auto;box-shadow:var(--shadow);animation:slideIn .2s ease;}
+@keyframes slideIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);}
+.modal-header h2{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;}
+.modal-close{background:none;border:none;color:var(--text2);font-size:19px;cursor:pointer;line-height:1;padding:3px;border-radius:4px;}
+.modal-close:hover{color:var(--red);}
+.modal-body{padding:16px;}
+
+.formula-block{background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:var(--radius);padding:9px 12px;margin-bottom:9px;font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.8;}
+.formula-block .ft{font-size:9px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;}
+.fv{color:var(--orange);}.fn{color:var(--blue);}.fres{color:var(--green);font-weight:500;}.fdim{color:var(--red);font-weight:500;}
+
+.sub-title{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;color:var(--text2);margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:12px;gap:8px;text-align:center;}
+::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:var(--bg);}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px;}
+.no-result{background:rgba(248,81,73,.08);border:1px solid var(--red);border-radius:var(--radius);padding:12px;color:var(--red);font-size:12px;text-align:center;margin:8px 0;}
+.tag{display:inline-flex;align-items:center;padding:1px 6px;border-radius:2px;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:500;}
+.tag-g{background:rgba(63,185,80,.15);color:var(--green);}
+.tag-b{background:rgba(88,166,255,.15);color:var(--blue);}
+.tag-o{background:rgba(255,166,87,.15);color:var(--orange);}
+.tag-p{background:rgba(188,140,255,.15);color:var(--purple);}
+</style>
+</head>
+<body>
+<header class="header">
+  <span class="header-badge">KDS 41 31 00</span>
+  <h1>L형강 인장재 자동 설계</h1>
+  <span class="header-sub">Angle Section Tension Member · 등변 L형강</span>
+</header>
+
+<div class="app">
+  <div class="app-top">
+  <!-- ══ LEFT PANEL ══ -->
+  <aside class="panel-left">
+
+    <div class="section">
+      <div class="section-title">설계 인장력</div>
+      <div class="form-group"><label>Pu — 계수 인장력 (kN)</label><input type="number" id="Pu" value="300" step="1" min="0" onchange="liveUpdate()"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">볼트 제원 · 접합 방식</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>볼트 공칭지름</label>
+          <select id="boltDiam" onchange="onBoltDiamChange()">
+            <option value="16">M16</option><option value="20" selected>M20</option>
+            <option value="22">M22</option><option value="24">M24</option>
+            <option value="27">M27</option><option value="30">M30</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>접합 방식</label>
+          <div class="radio-group">
+            <label class="radio-btn active" id="rb_single" onclick="setConn('single')"><input type="radio" name="ct" value="single" checked>일면</label>
+            <label class="radio-btn" id="rb_double" onclick="setConn('double')"><input type="radio" name="ct" value="double">양면</label>
+          </div>
+        </div>
+      </div>
+      <div id="boltLimitsInfo" style="font-size:9px;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin-top:4px;line-height:1.6;"></div>
+    </div>
+
+    <!-- 행(Row) 기반 볼트 배치 -->
+    <div class="section">
+      <div class="section-title">볼트 배치 — 행(Row) 기반 입력</div>
+      <div style="display:flex;gap:5px;margin-bottom:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn-small" onclick="addRow('h')" style="border-color:var(--orange);color:var(--orange)">+ 수평(ㅡ) 행</button>
+        <button class="btn-small" id="btnAddVRow" onclick="addRow('v')" style="border-color:var(--blue);color:var(--blue);opacity:0.4;pointer-events:none">+ 수직(ㅣ) 행</button>
+        <button class="btn-small" onclick="resetRows()" style="margin-left:auto">전체 초기화</button>
+      </div>
+      <div id="rowsContainer"></div>
+      <div style="font-size:9px;color:var(--text3);font-family:'IBM Plex Mono',monospace;line-height:1.6;margin-top:6px;background:var(--bg3);padding:5px 7px;border-radius:var(--radius)">
+        <strong style="color:var(--text2)">행(Row) 규칙:</strong><br>
+        • 각 행 = 하중방향과 평행한 볼트 라인 1줄<br>
+        • 수평(ㅡ): 수평 플랜지 / 수직(ㅣ): 수직 플랜지 [양면]<br>
+        • 첫 볼트=e(연단거리), 이후=p(피치) / g=게이지
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">강종</div>
+      <div class="form-group"><label>강종</label>
+        <select id="steelGrade" onchange="updateSteelInfo()">
+          <option value="SS275">SS275</option><option value="SM275">SM275/SMA275</option>
+          <option value="SM355" selected>SM355/SMA355</option><option value="SM420">SM420</option>
+          <option value="SM460">SM460</option><option value="SN275">SN275</option>
+          <option value="SN355">SN355</option><option value="SHN275">SHN275</option>
+          <option value="SHN355">SHN355</option>
+        </select>
+      </div>
+      <div id="steelInfo" style="margin-top:6px;font-size:10px;font-family:'IBM Plex Mono',monospace;"></div>
+    </div>
+
+    <div class="section" style="border-bottom:none">
+      <button class="btn-primary" onclick="runDesign()">▶ 최적 단면 산출</button>
+    </div>
+  </aside>
+
+  <!-- ══ FRONT VIEW ══ -->
+  <div class="panel-front" id="panelFront">
+    <div class="canvas-title">정면도 — 펼친 L형강 (하중 방향: →)</div>
+    <div id="frontPlaceholder" class="placeholder" style="height:calc(100% - 20px)">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><circle cx="8.5" cy="15.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/></svg>
+      <div>입력값 변경 시 즉시 반영</div>
+    </div>
+    <svg id="svgFront" style="display:none"></svg>
+  </div>
+
+  <!-- ══ SIDE VIEW ══ -->
+  <div class="panel-side" id="panelSide">
+    <div class="canvas-title">측면도 — L형강 단면 (게이지 방향)</div>
+    <div id="sidePlaceholder" class="placeholder" style="height:calc(100% - 20px)">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21V5h4v16M3 9h4M7 5l6-2v18"/></svg>
+      <div>입력값 변경 시 즉시 반영</div>
+    </div>
+    <svg id="svgSide" style="display:none"></svg>
+  </div>
+  </div><!-- end app-top -->
+
+  <!-- ══ RESULTS ══ -->
+  <div class="app-bottom">
+    <div class="panel-result">
+      <div id="resultContent">
+        <div class="placeholder" style="padding:20px"><div style="font-size:10px">최적 단면 산출 버튼을 눌러 계산 결과를 확인하세요</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="reportModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📋 계산 과정 상세 보고서</h2>
+      <button class="modal-close" onclick="closeReport()">✕</button>
+    </div>
+    <div class="modal-body" id="reportBody"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  DATABASE
+// ══════════════════════════════════════════
+const SECTION_DB=[
+  {name:'L-40×40×3',  B:40, t:3, Ag:233.6,  Cx:10.9,w:1.79e-2},
+  {name:'L-40×40×5',  B:40, t:5, Ag:375.5,  Cx:11.7,w:2.89e-2},
+  {name:'L-45×45×4',  B:45, t:4, Ag:349.2,  Cx:12.4,w:2.69e-2},
+  {name:'L-50×50×4',  B:50, t:4, Ag:389.2,  Cx:13.7,w:3.00e-2},
+  {name:'L-50×50×6',  B:50, t:6, Ag:564.4,  Cx:14.4,w:4.34e-2},
+  {name:'L-60×60×4',  B:60, t:4, Ag:469.2,  Cx:16.1,w:3.61e-2},
+  {name:'L-60×60×5',  B:60, t:5, Ag:580.2,  Cx:16.6,w:4.46e-2},
+  {name:'L-65×65×6',  B:65, t:6, Ag:752.7,  Cx:18.1,w:5.79e-2},
+  {name:'L-65×65×8',  B:65, t:8, Ag:976.1,  Cx:18.8,w:7.51e-2},
+  {name:'L-70×70×6',  B:70, t:6, Ag:812.7,  Cx:19.4,w:6.25e-2},
+  {name:'L-75×75×6',  B:75, t:6, Ag:872.7,  Cx:20.6,w:6.71e-2},
+  {name:'L-75×75×9',  B:75, t:9, Ag:1269.0, Cx:21.7,w:9.76e-2},
+  {name:'L-75×75×12', B:75, t:12,Ag:1656.0, Cx:22.9,w:1.27e-1},
+  {name:'L-80×80×6',  B:80, t:6, Ag:932.7,  Cx:21.9,w:7.17e-2},
+  {name:'L-80×80×9',  B:80, t:9, Ag:1055.0, Cx:24.2,w:8.11e-2},
+  {name:'L-90×90×6',  B:90, t:6, Ag:1222.0, Cx:24.6,w:9.40e-2},
+  {name:'L-90×90×10', B:90, t:10,Ag:1700.0, Cx:25.8,w:1.30e-1},
+  {name:'L-90×90×13', B:90, t:13,Ag:2171.0, Cx:26.9,w:1.67e-1},
+  {name:'L-100×100×7',B:100,t:7, Ag:1362.0, Cx:27.1,w:1.05e-1},
+  {name:'L-100×100×10',B:100,t:10,Ag:1900.0,Cx:28.3,w:1.46e-1},
+  {name:'L-100×100×13',B:100,t:13,Ag:2431.0,Cx:29.4,w:1.87e-1},
+  {name:'L-120×120×8', B:120,t:8, Ag:1876.0,Cx:32.4,w:1.44e-1},
+  {name:'L-130×130×9', B:130,t:9, Ag:2274.0,Cx:35.3,w:1.75e-1},
+  {name:'L-130×130×12',B:130,t:12,Ag:2976.0,Cx:36.4,w:2.29e-1},
+  {name:'L-130×130×15',B:130,t:15,Ag:3675.0,Cx:37.6,w:2.82e-1},
+  {name:'L-150×150×12',B:150,t:12,Ag:3477.0,Cx:41.4,w:2.68e-1},
+  {name:'L-150×150×15',B:150,t:15,Ag:4274.0,Cx:42.4,w:3.29e-1},
+  {name:'L-150×150×19',B:150,t:19,Ag:5338.0,Cx:44.0,w:4.11e-1},
+  {name:'L-175×175×12',B:175,t:12,Ag:4052.0,Cx:47.3,w:3.12e-1},
+  {name:'L-175×175×15',B:175,t:15,Ag:5021.0,Cx:48.5,w:3.86e-1},
+  {name:'L-200×200×15',B:200,t:15,Ag:5775.0,Cx:54.7,w:4.44e-1},
+  {name:'L-200×200×20',B:200,t:20,Ag:7600.0,Cx:56.7,w:5.85e-1},
+  {name:'L-200×200×25',B:200,t:25,Ag:9375.0,Cx:58.7,w:7.21e-1},
+  {name:'L-250×250×25',B:250,t:25,Ag:11940.0,Cx:71.0,w:9.18e-1},
+  {name:'L-250×250×35',B:250,t:35,Ag:16260.0,Cx:74.5,w:1.25e0},
+];
+const GRADE_DB={
+  SS275:{Fy:[275,265,245,245],Fu:[410,410,400,400]},
+  SM275:{Fy:[275,265,255,245],Fu:[410,410,400,400]},
+  SM355:{Fy:[355,345,335,325],Fu:[490,490,480,470]},
+  SM420:{Fy:[420,410,400,390],Fu:[520,520,510,500]},
+  SM460:{Fy:[460,450,430,420],Fu:[570,570,555,540]},
+  SN275:{Fy:[275,275,255,255],Fu:[410,410,400,400]},
+  SN355:{Fy:[355,355,335,335],Fu:[490,490,480,480]},
+  SHN275:{Fy:[275,275,null,null],Fu:[410,410,null,null]},
+  SHN355:{Fy:[355,355,null,null],Fu:[490,490,null,null]},
+};
+function getFyFu(grade,t){
+  const g=GRADE_DB[grade];if(!g)return{Fy:355,Fu:490};
+  const i=t<=16?0:t<=40?1:t<=75?2:3;
+  const Fy=g.Fy[i],Fu=g.Fu[i];
+  if(Fy===null)return{Fy:null,Fu:null,error:`${grade}는 t=${t}mm 불가`};
+  return{Fy,Fu};
+}
+function getDhole(d){return d<=22?d+2:d+3;}
+
+// ══════════════════════════════════════════
+//  KDS 14 31 25 간격 검토
+// ══════════════════════════════════════════
+function getLimits(d, t){
+  const minSpacing = 2.5*d;
+  const maxSpacing = Math.min(24*t, 300);
+  const minEdge   = 1.5*d;
+  const maxEdge   = Math.min(12*t, 150);
+  return {minSpacing, maxSpacing, minEdge, maxEdge};
+}
+
+// val: 실제값, isEdge: 연단거리 여부 → {ok,warn,err, msg}
+function checkLimit(val, lim, isEdge){
+  const min = isEdge ? lim.minEdge : lim.minSpacing;
+  const max = isEdge ? lim.maxEdge : lim.maxSpacing;
+  if(val < min) return {status:'err', msg:`${val}<${min.toFixed(0)}(min)`};
+  if(val > max) return {status:'warn', msg:`${val}>${max.toFixed(0)}(max)`};
+  return {status:'ok', msg:'OK'};
+}
+
+// ══════════════════════════════════════════
+//  STATE — 행(Row) 기반 데이터 구조
+//
+//  rows[]: { id, type('h'|'v'), letter, g, bolts:[{ep}] }
+//    letter: 'a','b','c'... — 전체 행을 y 위치 순 알파벳 부여
+//            수평행: g 값 오름차순(작을수록 위 = a,b,c...)
+//            수직행: 양면일 때 수평행 뒤에 이어 붙임
+//    bolts[i].ep: i===0 → 연단거리(e), i>0 → 피치(p)
+//    볼트 ID: {letter}{1-based-index} → a1, a2, a3 / b1, b2 ...
+//
+//  파단 경로 규칙 (calcNetArea에서 적용):
+//    규칙1: 같은 행 내 이동 불가 (a1→a2 금지)
+//    규칙2: 다른 행 + x 오른쪽(x 증가)으로만 사선 이동
+//    규칙3: 시작/끝 엣지 수직 진입/진출 → 보정 없음
+// ══════════════════════════════════════════
+let rows = [
+  { id:'R1', type:'h', letter:'a', g:55, bolts:[{ep:50},{ep:70},{ep:70}] },
+];
+let connType = 'single';
+let lastResult = null;
+let rowIdCounter = 2;
+
+// ── 알파벳 행 레이블 부여 ──
+// 전체 행을 g 오름차순 → 수평 먼저, 같은 g면 수직 나중으로 정렬 후 a,b,c... 부여
+function ALPHA(i){ return String.fromCharCode(97+i); } // 0→'a', 1→'b'...
+
+function reLetterRows(){
+  // 수평행: g 오름차순
+  const hRows = rows.filter(r=>r.type==='h').sort((a,b)=>a.g-b.g);
+  // 수직행: g 오름차순 (양면일 때)
+  const vRows = rows.filter(r=>r.type==='v').sort((a,b)=>a.g-b.g);
+  const ordered = [...hRows, ...vRows];
+  ordered.forEach((r,i)=>{ r.letter = ALPHA(i); });
+}
+
+// 볼트 full ID: a1, a2 ...
+function boltFullId(row, bIdx){ return `${row.letter}${bIdx+1}`; }
+
+window.onload = () => {
+  reLetterRows();
+  renderAllRows();
+  updateSteelInfo();
+  updateBoltLimitsInfo();
+  document.getElementById('steelGrade').addEventListener('change', updateSteelInfo);
+};
+
+// ── 즉각 도면 반영 (입력 변경 시 호출) ──
+// 계산 없이 도면만 갱신 (빠른 시각 피드백)
+function liveDrawOnly(){
+  syncFromDom();
+  reLetterRows();
+  // 임시 단면: 현재 선택된 최적 단면이 있으면 그것으로, 없으면 첫 번째 단면 사용
+  const sec = (lastResult && lastResult.optimal) ? lastResult.optimal.sec : SECTION_DB[21]; // L-120×120×8
+  const boltDiam = parseInt(document.getElementById('boltDiam').value)||20;
+  const grade = document.getElementById('steelGrade').value;
+  const Pu = parseFloat(document.getElementById('Pu').value)||0;
+  // 빠른 계산 (단일 단면)
+  const res = calcSection(sec, Pu, boltDiam, grade);
+  drawFrontView(res);
+  drawSideView(res);
+}
+
+// 입력 변경 시 즉각 도면 + 결과 유지
+function liveUpdate(){
+  liveDrawOnly();
+}
+
+function onBoltDiamChange(){ updateBoltLimitsInfo(); renderAllRows(); liveDrawOnly(); }
+
+function setConn(type){
+  connType = type;
+  document.getElementById('rb_single').classList.toggle('active', type==='single');
+  document.getElementById('rb_double').classList.toggle('active', type==='double');
+  const vBtn = document.getElementById('btnAddVRow');
+  vBtn.style.opacity = type==='double' ? '1' : '0.4';
+  vBtn.style.pointerEvents = type==='double' ? 'auto' : 'none';
+  if(type==='single') rows = rows.filter(r=>r.type!=='v');
+  reLetterRows();
+  renderAllRows();
+  liveDrawOnly();
+}
+
+function updateBoltLimitsInfo(){
+  const d = parseInt(document.getElementById('boltDiam').value);
+  const dh = getDhole(d);
+  document.getElementById('boltLimitsInfo').innerHTML =
+    `M${d} dhole=${dh}mm | 최소간격≥${(2.5*d).toFixed(0)} | 연단≥${(1.5*d).toFixed(0)},≤min(12t,150) | 피치≤min(24t,300)`;
+}
+
+function updateSteelInfo(){
+  const grade = document.getElementById('steelGrade').value;
+  const g = GRADE_DB[grade]; if(!g) return;
+  const tiers = ['≤16','16~40','40~75','75~100'];
+  let h = '<table style="width:100%;border-collapse:collapse">';
+  h += '<tr><th style="padding:1px 4px;text-align:left;color:var(--text3);font-size:9px">두께</th><th style="padding:1px 4px;color:var(--orange);font-size:9px">Fy</th><th style="padding:1px 4px;color:var(--blue);font-size:9px">Fu</th></tr>';
+  for(let i=0;i<4;i++)
+    h += `<tr><td style="padding:1px 4px;color:var(--text3);font-size:9px">${tiers[i]}mm</td><td style="padding:1px 4px;color:var(--orange);font-size:9px">${g.Fy[i]??'—'}MPa</td><td style="padding:1px 4px;color:var(--blue);font-size:9px">${g.Fu[i]??'—'}MPa</td></tr>`;
+  h += '</table>';
+  document.getElementById('steelInfo').innerHTML = h;
+}
+
+// ── 행 추가 ──
+function addRow(type){
+  if(type==='v' && connType!=='double') return;
+  const refRow = rows.find(r=>r.type===type);
+  const nBolts = refRow ? refRow.bolts.length : 3;
+  const newBolts = [];
+  for(let i=0;i<nBolts;i++) newBolts.push({ep: i===0?50:70});
+  rows.push({ id:'R'+rowIdCounter++, type, letter:'?', g:55, bolts:newBolts });
+  reLetterRows();
+  renderAllRows();
+  liveDrawOnly();
+}
+
+// ── 행 삭제 ──
+function removeRow(rowId){
+  if(rows.filter(r=>r.type==='h').length <= 1 && rows.find(r=>r.id===rowId)?.type==='h') return;
+  rows = rows.filter(r=>r.id!==rowId);
+  reLetterRows();
+  renderAllRows();
+  liveDrawOnly();
+}
+
+// ── 전체 초기화 ──
+function resetRows(){
+  rows = [{ id:'R1', type:'h', letter:'a', g:55, bolts:[{ep:50},{ep:70},{ep:70}] }];
+  rowIdCounter = 2;
+  reLetterRows();
+  renderAllRows();
+  liveDrawOnly();
+}
+
+// ── 볼트 추가/삭제 (행 내) ──
+function addBoltToRow(rowId){
+  const row = rows.find(r=>r.id===rowId);
+  if(!row) return;
+  row.bolts.push({ep:70});
+  renderAllRows();
+  liveDrawOnly();
+}
+function removeBoltFromRow(rowId, bIdx){
+  const row = rows.find(r=>r.id===rowId);
+  if(!row || row.bolts.length<=1) return;
+  row.bolts.splice(bIdx,1);
+  renderAllRows();
+  liveDrawOnly();
+}
+
+// ── 행 전체 렌더 ──
+function renderAllRows(){
+  reLetterRows(); // g값 변경 시 알파벳 재정렬
+  const c = document.getElementById('rowsContainer');
+  c.innerHTML = '';
+  const d = parseInt(document.getElementById('boltDiam').value)||20;
+
+  // 표시 순서: h행 g오름차순, v행 g오름차순
+  const hRows = rows.filter(r=>r.type==='h').sort((a,b)=>a.g-b.g);
+  const vRows = rows.filter(r=>r.type==='v').sort((a,b)=>a.g-b.g);
+  const orderedRows = [...hRows, ...vRows];
+
+  orderedRows.forEach(row=>{
+    const isH = row.type==='h';
+    const rowColor = isH ? 'var(--orange)' : 'var(--blue)';
+    const rowLabel = `${row.letter}행 ${isH?'수평(ㅡ)':'수직(ㅣ)'}  g=${row.g}mm`;
+
+    const block = document.createElement('div');
+    block.style.cssText = `background:var(--bg3);border:1px solid ${isH?'rgba(255,166,87,0.3)':'rgba(88,166,255,0.3)'};border-radius:var(--radius);padding:7px 8px;margin-bottom:5px;`;
+
+    // 행 헤더 (알파벳 배지 + 게이지 입력 + 삭제)
+    let html = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+      <div style="min-width:28px;height:28px;border-radius:50%;background:${isH?'rgba(255,166,87,0.18)':'rgba(88,166,255,0.18)'};
+        border:1.5px solid ${rowColor};display:flex;align-items:center;justify-content:center;
+        font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:${rowColor}">${row.letter}</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:${rowColor};flex-shrink:0">${isH?'수평(ㅡ)':'수직(ㅣ)'}</div>
+      <div class="form-group" style="flex:1">
+        <label style="font-size:8px;color:var(--text3)">g — 게이지(mm)</label>
+        <input type="number" min="1" step="5" value="${row.g}"
+          style="padding:3px 6px;font-size:11px;background:var(--bg);border:1px solid var(--border2);color:var(--text);border-radius:var(--radius);font-family:'IBM Plex Mono',monospace;"
+          onchange="updateRowG('${row.id}',this.value)">
+      </div>
+      ${rows.filter(r=>r.type===row.type).length > (isH?1:0)
+        ? `<button onclick="removeRow('${row.id}')" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:4px;font-size:10px;padding:2px 6px;cursor:pointer;font-family:'IBM Plex Mono',monospace">✕</button>`
+        : ''}
+    </div>`;
+
+    // 볼트 목록 헤더
+    html += `<div style="display:grid;grid-template-columns:36px 1fr 18px;gap:3px;margin-bottom:2px;font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--text3);">
+      <div style="text-align:center">볼트ID</div>
+      <div style="text-align:center">e₁(연단) / p₂₊(피치) mm</div>
+      <div></div>
+    </div>`;
+
+    // 볼트 목록
+    row.bolts.forEach((b, bIdx)=>{
+      const isFirst = bIdx===0;
+      const lim = getLimits(d, 10); // UI용 t=10 placeholder
+      const chk = checkLimit(b.ep, lim, isFirst);
+      const bcolor = chk.status==='err'?'var(--red)':chk.status==='warn'?'var(--yellow)':'var(--border2)';
+      const bId = boltFullId(row, bIdx); // e.g. a1, a2, b1
+      html += `<div style="display:grid;grid-template-columns:36px 1fr 18px;gap:3px;align-items:center;margin-bottom:3px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:${rowColor};
+          text-align:center;background:${isH?'rgba(255,166,87,0.1)':'rgba(88,166,255,0.1)'};
+          border-radius:3px;padding:1px 0">${bId}</div>
+        <div style="position:relative">
+          <input type="number" min="1" step="5" value="${b.ep}"
+            style="padding:3px 28px 3px 6px;font-size:11px;background:var(--bg);border:1px solid ${bcolor};
+              color:var(--text);border-radius:var(--radius);font-family:'IBM Plex Mono',monospace;width:100%"
+            placeholder="${isFirst?'e=연단':'p=피치'}"
+            onchange="updateBoltEp('${row.id}',${bIdx},this.value)">
+          <span style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:7px;
+            color:${chk.status==='ok'?'var(--green)':chk.status==='warn'?'var(--yellow)':'var(--red)'}">${chk.msg}</span>
+        </div>
+        ${row.bolts.length>1
+          ? `<button onclick="removeBoltFromRow('${row.id}',${bIdx})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;line-height:1">✕</button>`
+          : '<div></div>'}
+      </div>`;
+    });
+
+    html += `<div style="display:flex;gap:4px;margin-top:5px;">
+      <button class="btn-small" onclick="addBoltToRow('${row.id}')" style="font-size:9px;padding:2px 8px">+ 볼트</button>
+    </div>`;
+
+    block.innerHTML = html;
+    c.appendChild(block);
+  });
+}
+
+// ── 값 업데이트 ──
+function updateRowG(rowId, val){
+  const row = rows.find(r=>r.id===rowId);
+  if(row) row.g = parseFloat(val)||0;
+  reLetterRows(); // g 바뀌면 알파벳 재배정
+  renderAllRows();
+  liveDrawOnly();
+}
+function updateBoltEp(rowId, bIdx, val){
+  const row = rows.find(r=>r.id===rowId);
+  if(row && row.bolts[bIdx]) row.bolts[bIdx].ep = parseFloat(val)||0;
+  renderAllRows();
+  liveDrawOnly();
+}
+
+// ── DOM 동기화 ──
+function syncFromDom(){
+  const hRows = rows.filter(r=>r.type==='h').sort((a,b)=>a.g-b.g);
+  const vRows = rows.filter(r=>r.type==='v').sort((a,b)=>a.g-b.g);
+  const orderedRows = [...hRows, ...vRows];
+  const allBlocks = document.getElementById('rowsContainer').children;
+  orderedRows.forEach((row, ri)=>{
+    const block = allBlocks[ri]; if(!block) return;
+    const inputs = block.querySelectorAll('input[type="number"]');
+    if(inputs[0]) row.g = parseFloat(inputs[0].value)||row.g;
+    row.bolts.forEach((b,bi)=>{
+      if(inputs[bi+1]) b.ep = parseFloat(inputs[bi+1].value)||b.ep;
+    });
+  });
+  reLetterRows();
+}
+
+
+
+// ══════════════════════════════════════════
+//  CORE: NET AREA
+//  이미지 기반 파단 경로 알고리즘
+//
+//  ── 노드 구조 ──
+//  { boltId, rowId, rowLetter, row_idx, col, x, g, type }
+//    row_idx: 화면 위→아래 (0=최상단, N=최하단)
+//             양면: v행(수직) → h행(수평) 순
+//             일면: h행을 g 오름차순
+//    col    : 행 내 볼트 열 번호 (0-based)
+//    x      : 누적 x 좌표 (연단거리+피치)
+//    g      : 게이지 (행의 y 위치)
+//
+//  ── 파단 경로 4규칙 (사양서 기준) ──
+//  규칙1: row_idx 단조 증가 (위→아래, 역행 금지)
+//  규칙2: col == 현재col + 1 (인접 열 전진)
+//  규칙3: 같은 행 이동 금지 (규칙1로 자동 만족)
+//  규칙4: 최하단 행(maxRowIdx) 도달 시에만 유효 경로
+//
+//  ── 시점/종점 ──
+//  시점: row_idx==0 & col==0 인 노드들
+//  종점: row_idx==maxRowIdx 도달 시 경로 확정 저장
+//
+//  ── An 계산 ──
+//  An = Ag − n×dhole×t + Σ[s²/(4g)×t]
+//  엣지 진입출(시점·종점) 구간은 수직선 → 보정 없음
+// ══════════════════════════════════════════
+function calcNetArea(sec, boltDiam){
+  const dhole = getDhole(boltDiam);
+  const totalW = 2*sec.B - sec.t;
+
+  const activeRows = connType==='single'
+    ? rows.filter(r=>r.type==='h')
+    : [...rows];
+
+  let orderedByRowIdx;
+  if(connType==='double'){
+    const vSorted = activeRows.filter(r=>r.type==='v').sort((a,b)=>a.g-b.g);
+    const hSorted = activeRows.filter(r=>r.type==='h').sort((a,b)=>a.g-b.g);
+    orderedByRowIdx = [...vSorted, ...hSorted];
+  } else {
+    orderedByRowIdx = [...activeRows].sort((a,b)=>a.g-b.g);
+  }
+  const rowIdxMap = {};
+  orderedByRowIdx.forEach((row,idx)=>{ rowIdxMap[row.id] = idx; });
+  const maxRowIdx = orderedByRowIdx.length - 1;
+
+  const allNodes = [];
+  activeRows.forEach(row=>{
+    let cx = 0;
+    row.bolts.forEach((b,bi)=>{
+      cx += b.ep;
+      allNodes.push({
+        boltId   : boltFullId(row, bi),
+        rowId    : row.id,
+        rowLetter: row.letter,
+        row_idx  : rowIdxMap[row.id],
+        col      : bi,
+        x        : cx,
+        g        : row.g,
+        type     : row.type,
+        ep       : b.ep,
+      });
+    });
+  });
+
+  allNodes.sort((a,b)=> a.row_idx!==b.row_idx ? a.row_idx-b.row_idx : a.col-b.col);
+
+  const nNodes = allNodes.length;
+  const allG = [...new Set(allNodes.map(nd=>nd.g))].sort((a,b)=>a-b);
+
+  const pathResults = [];
+  let minAn = Infinity, critPath = null;
+
+  // ──────────────────────────────────────────
+  //  DFS 규칙:
+  //  규칙1: row_idx 단조 증가 (위→아래, 역행 금지)
+  //  규칙2: col == 현재col+1  OR  col == 현재col (같은열 아래행)
+  //         → 즉 col 역행만 금지 (col >= 현재col 허용)
+  //  규칙3: 같은 행 이동 금지 (row_idx 동일 불가)
+  //  규칙4: 최하단행(maxRowIdx) 도달 시 유효경로 확정
+  //         단, 행이 1개인 경우 그 1개만 통과해도 유효
+  //  ※ 1개 경로: 행 수가 1이면 해당 행의 볼트 1개만 통과
+  // ──────────────────────────────────────────
+  function dfs(path){
+    const last = path[path.length-1];
+
+    // 규칙4: 최하단 행 도달 → 유효경로
+    if(last.row_idx === maxRowIdx){
+      evalPath([...path]);
+      return;
+    }
+
+    for(const nd of allNodes){
+      if(nd.row_idx <= last.row_idx) continue; // 규칙1
+      if(nd.col < last.col) continue;           // col 역행 금지
+      dfs([...path, nd]);
+    }
+  }
+
+  function evalPath(pNodes){
+    let An = sec.Ag;
+    const holesHit = pNodes.length;
+    An -= holesHit * dhole * sec.t;
+
+    const segDetails = [];
+    for(let k=1; k<pNodes.length; k++){
+      const prev = pNodes[k-1];
+      const curr = pNodes[k];
+      const s_mm = curr.x - prev.x;
+      const g_mm = Math.abs(curr.g - prev.g);
+      let corr = 0;
+      if(s_mm > 0.1 && g_mm > 0.1){
+        corr = (s_mm*s_mm)/(4*g_mm)*sec.t;
+        An += corr;
+      }
+      segDetails.push({
+        from: prev.boltId, to: curr.boltId,
+        s: s_mm, g: g_mm, corr,
+        formula: (g_mm>0.1 && s_mm>0.1)
+          ? `${s_mm}²/(4×${g_mm})×${sec.t}=${corr.toFixed(2)}`
+          : (s_mm<0.1 ? '수직이동(s=0)→보정없음' : '직선(g差=0)→보정없음')
+      });
+    }
+    An = Math.max(An, 0);
+    const label     = pNodes.map(nd=>nd.boltId).join('→');
+    const fullLabel = pNodes.map(nd=>`${nd.boltId}[col=${nd.col+1},x=${nd.x},g=${nd.g}]`).join('→');
+    const corrTotal = segDetails.reduce((a,sg)=>a+sg.corr, 0);
+
+    pathResults.push({label,fullLabel,An,pathNodes:[...pNodes],holesHit,segDetails,corrTotal,chosenG:pNodes.map(nd=>nd.g)});
+    if(An < minAn){
+      minAn = An;
+      critPath = {label,fullLabel,An,pathNodes:[...pNodes],segDetails,corrTotal,chosenG:pNodes.map(nd=>nd.g)};
+    }
+  }
+
+  // 시작: row_idx==0 인 모든 노드에서 출발
+  const startNodes = allNodes.filter(nd=> nd.row_idx===0);
+  for(const sn of startNodes) dfs([sn]);
+
+  // 행이 1개뿐인 경우: 단독 경로 추가
+  if(maxRowIdx === 0){
+    // 이미 dfs로 모두 처리됨
+  }
+
+  pathResults.sort((a,b)=>a.An-b.An);
+
+  const groupedByHoles = {};
+  pathResults.forEach(p=>{
+    const k = p.holesHit;
+    if(!groupedByHoles[k]) groupedByHoles[k]=[];
+    groupedByHoles[k].push(p);
+  });
+
+  const lim = getLimits(boltDiam, sec.t);
+  const violations = [];
+  activeRows.forEach(row=>{
+    row.bolts.forEach((b,bi)=>{
+      const isEdge=bi===0;
+      const vc=checkLimit(b.ep,lim,isEdge);
+      const gc=checkLimit(row.g,lim,false);
+      if(vc.status!=='ok') violations.push(`${boltFullId(row,bi)} ${isEdge?'e':'p'}: ${vc.msg}`);
+      if(bi===0 && gc.status!=='ok') violations.push(`${row.letter}행 g: ${gc.msg}`);
+    });
+  });
+
+  return{
+    dhole, minAn:minAn===Infinity?0:minAn, critPath, pathResults,
+    groupedByHoles, allG, totalW, n:nNodes, violations,
+    nodes:allNodes, activeRows, orderedByRowIdx, maxRowIdx
+  };
+}
+
+function calcBlockShear(sec, boltDiam, Fy, Fu, type) {
+  const dhole = getDhole(boltDiam);
+  const flRows = rows.filter(r => r.type === type).sort((a, b) => a.g - b.g);
+  if (flRows.length === 0) return null;
+
+  let sumLv = 0;
+  let sumHolesVolts = 0;
+  flRows.forEach(row => {
+    let Lv = 0;
+    row.bolts.forEach(b => {
+      Lv += b.ep;
+    });
+    sumLv += Lv;
+    sumHolesVolts += (row.bolts.length - 0.5);
+  });
+
+  const Agv = sumLv * sec.t;
+  const Anv = Math.max(0, (sumLv - sumHolesVolts * dhole) * sec.t);
+
+  const g1 = flRows[0].g;
+  const Wt = sec.B - g1;
+  const n = flRows.length;
+  const Ant = Math.max(0, (Wt - (n - 0.5) * dhole) * sec.t);
+
+  const Ubs = 1.0;
+
+  const Rn1 = 0.6 * Fu * Anv + Ubs * Fu * Ant;
+  const Rn2 = 0.6 * Fy * Agv + Ubs * Fu * Ant;
+  const Rn = Math.min(Rn1, Rn2);
+  const phiRn = 0.75 * Rn;
+
+  return {
+    type,
+    g1,
+    Wt,
+    n,
+    sumLv,
+    sumHolesVolts,
+    Agv,
+    Anv,
+    Ant,
+    Ubs,
+    Rn1,
+    Rn2,
+    Rn,
+    phiRn
+  };
+}
+
+// ══════════════════════════════════════════
+//  CORE: SECTION CALC
+// ══════════════════════════════════════════
+function calcSection(sec, Pu_kN, boltDiam, grade){
+  const Pu = Pu_kN*1000;
+  const{Fy,Fu,error} = getFyFu(grade, sec.t);
+  if(error||Fy===null) return{pass:false,error,sec,phiPn1:0,phiPn2:0,phiPn3:0,phiPn:0,Pu:Pu/1000,ratio:0,An_min:0,Ae:0,U:0};
+
+  const nc = calcNetArea(sec, boltDiam);
+  const An_min = nc.minAn;
+
+  // Lconn: 수평 플랜지 첫 번째 h행의 피치 합계 (볼트2부터)
+  const hRow = rows.filter(r=>r.type==='h').sort((a,b)=>a.g-b.g)[0];
+  let Lconn = 0;
+  if(hRow) for(let i=1;i<hRow.bolts.length;i++) Lconn += hRow.bolts[i].ep;
+  if(Lconn===0) Lconn = hRow?.bolts[0]?.ep||50;
+
+  let U;
+  if(connType==='double') U = 1.0;
+  else U = Math.min(Math.max(1-(sec.Cx/Lconn),0),1.0);
+
+  const Ae = U*An_min;
+  const phiPn1 = 0.9*Fy*sec.Ag;
+  const phiPn2 = 0.75*Fu*Ae;
+
+  // 블록전단 강도 계산 (N 단위)
+  let phiPn3 = Infinity;
+  let blockShearH = calcBlockShear(sec, boltDiam, Fy, Fu, 'h');
+  let blockShearV = connType === 'double' ? calcBlockShear(sec, boltDiam, Fy, Fu, 'v') : null;
+
+  let blockShearDetail = null;
+  if (blockShearH && blockShearV) {
+    if (blockShearH.phiRn < blockShearV.phiRn) {
+      phiPn3 = blockShearH.phiRn;
+      blockShearDetail = blockShearH;
+    } else {
+      phiPn3 = blockShearV.phiRn;
+      blockShearDetail = blockShearV;
+    }
+  } else if (blockShearH) {
+    phiPn3 = blockShearH.phiRn;
+    blockShearDetail = blockShearH;
+  } else if (blockShearV) {
+    phiPn3 = blockShearV.phiRn;
+    blockShearDetail = blockShearV;
+  }
+
+  const phiPn = Math.min(phiPn1, phiPn2, phiPn3);
+  const pass = phiPn>=Pu;
+  const ratio = Pu>0?phiPn/Pu:0;
+  const governing = phiPn===phiPn1?'총단면 항복 지배':(phiPn===phiPn2?'순단면 파단 지배':'블록전단 파단 지배');
+
+  return{pass,sec,Fy,Fu,U,Lconn,An_min,Ae,
+    phiPn1:phiPn1/1000,phiPn2:phiPn2/1000,phiPn3:phiPn3 === Infinity ? 0 : phiPn3/1000,phiPn:phiPn/1000,Pu:Pu/1000,
+    ratio,governing,netCalc:nc,dhole:nc.dhole,blockShearDetail,blockShearH,blockShearV};
+}
+
+// ══════════════════════════════════════════
+//  RUN DESIGN
+// ══════════════════════════════════════════
+function runDesign(){
+  syncFromDom();
+  const Pu = parseFloat(document.getElementById('Pu').value)||0;
+  const boltDiam = parseInt(document.getElementById('boltDiam').value);
+  const grade = document.getElementById('steelGrade').value;
+
+  let allResults=[], optimal=null;
+  for(const sec of SECTION_DB){
+    const res = calcSection(sec, Pu, boltDiam, grade);
+    allResults.push(res);
+    if(res.pass&&(!optimal||sec.w<optimal.sec.w)) optimal=res;
+  }
+  lastResult = {optimal, allResults, Pu, boltDiam, grade};
+  drawFrontView(optimal);
+  drawSideView(optimal);
+  renderResults(optimal, allResults);
+}
+
+// ══════════════════════════════════════════
+//  정면도 — 패널 꽉 채움, 즉각 반영
+//  일면: 수평 플랜지 게이지 방향만 표시
+//  양면: Heel 점선 기준 상부(수직 플랜지) + 하부(수평 플랜지) 대칭 펼침
+//  각 행 고유 색상, 볼트 레이블 a1/b2 형식
+// ══════════════════════════════════════════
+function drawFrontView(res){
+  const panel = document.getElementById('panelFront');
+  const ph = document.getElementById('frontPlaceholder');
+
+  // 기존 SVG 제거
+  const old = panel.querySelector('svg.frontSvg');
+  if(old) old.remove();
+
+  if(!res || !res.sec){ph.style.display='flex';return;}
+  ph.style.display='none';
+
+  const sec = res.sec;
+  const d = (lastResult?.boltDiam) || parseInt(document.getElementById('boltDiam').value)||20;
+  const nc = res.netCalc;
+  const activeRows = nc.activeRows;
+
+  const ROW_COLORS = ['#ffa657','#58a6ff','#3fb950','#bc8cff','#f78166','#39d353','#79c0ff','#ffb347'];
+  const rowColorMap = {};
+  activeRows.forEach((row,i)=>{ rowColorMap[row.id]=ROW_COLORS[i%ROW_COLORS.length]; });
+
+  // 각 행별 x 좌표 누적
+  const rowXsMap = {};
+  activeRows.forEach(row=>{
+    let cx=0; rowXsMap[row.id]=row.bolts.map(b=>{cx+=b.ep;return cx;});
+  });
+  const maxX = Math.max(...Object.values(rowXsMap).flat(),10);
+
+  // ── 펼친 단면 치수 결정 ──
+  const totalWmm = connType==='double' ? 2*sec.B-sec.t : sec.B;
+  function rowY(row){
+    if(connType==='single') return row.g;
+    return row.type==='h' ? sec.B + row.g : sec.B - row.g;
+  }
+  const W = panel.clientWidth || 600;
+  const H = panel.clientHeight - 22;
+  const padL=82, padR=82, padT=52, padB=52;
+  const drawW = W-padL-padR, drawH = H-padT-padB;
+  const scaleX = drawW/Math.max(maxX,1), scaleY = drawH/Math.max(totalWmm,1);
+  const secLeft=padL, secRight=padL+drawW;
+  const secTop=padT, secBot=padT+totalWmm*scaleY;
+  const critPath = nc.critPath;
+
+  let svg=`<svg class="frontSvg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="flex:1;width:100%;display:block;background:#0d1117;border-radius:4px">`;
+  svg+=`<defs>
+    <marker id="arR" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#ffa657"/></marker>
+    <marker id="arL" markerWidth="7" markerHeight="5" refX="0" refY="2.5" orient="auto"><polygon points="7 0,0 2.5,7 5" fill="#ffa657"/></marker>
+  </defs>`;
+  svg+=`<rect x="${secLeft}" y="${secTop}" width="${drawW}" height="${totalWmm*scaleY}" fill="rgba(255,255,255,0.012)" stroke="#30363d" stroke-width="1"/>`;
+
+  if(connType==='double'){
+    const heelY = secTop + sec.B*scaleY;
+    svg+=`<line x1="${secLeft-25}" y1="${heelY}" x2="${secRight+25}" y2="${heelY}" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="8,4" opacity="0.85"/>`;
+    svg+=`<text x="${secLeft-27}" y="${heelY+4}" text-anchor="end" fill="#58a6ff" font-family="IBM Plex Mono" font-size="9">Heel</text>`;
+    svg+=`<text x="${secLeft+4}" y="${secTop+13}" fill="rgba(88,166,255,0.5)" font-family="IBM Plex Mono" font-size="8">ㅣ수직 ↑</text>`;
+    svg+=`<text x="${secLeft+4}" y="${heelY+20}" fill="rgba(255,166,87,0.5)" font-family="IBM Plex Mono" font-size="8">ㅡ수평 ↓</text>`;
+  }
+  svg+=`<text x="${secLeft}" y="${secTop-32}" fill="#8b949e" font-family="IBM Plex Mono" font-size="9">${sec.name}  B=${sec.B}  t=${sec.t}  Ag=${sec.Ag}mm²</text>`;
+  let lx=secLeft;
+  activeRows.forEach(row=>{
+    const rc=rowColorMap[row.id];
+    svg+=`<rect x="${lx}" y="${secTop-22}" width="9" height="9" fill="${rc}" rx="1.5"/>`;
+    svg+=`<text x="${lx+4.5}" y="${secTop-13}" text-anchor="middle" fill="${rc}" font-family="Space Grotesk" font-size="8" font-weight="700">${row.letter}</text>`;
+    svg+=`<text x="${lx+13}" y="${secTop-13}" fill="${rc}" font-family="IBM Plex Mono" font-size="7.5">${row.type==='h'?'ㅡ':'ㅣ'} g=${row.g}</text>`;
+    lx+=72;
+  });
+  const arY = secTop + totalWmm*scaleY/2;
+  svg+=`<line x1="${secRight+12}" y1="${arY}" x2="${secRight+52}" y2="${arY}" stroke="#ffa657" stroke-width="2.5" marker-end="url(#arR)"/>`;
+  svg+=`<text x="${secRight+57}" y="${arY+5}" fill="#ffa657" font-family="IBM Plex Mono" font-size="12" font-weight="600">P</text>`;
+  svg+=`<line x1="${secLeft-12}" y1="${arY}" x2="${secLeft-52}" y2="${arY}" stroke="#ffa657" stroke-width="2.5" marker-end="url(#arL)"/>`;
+  const boltR = Math.max(4.5, getDhole(d)/2*Math.min(scaleX,scaleY)*0.65);
+  activeRows.forEach(row=>{
+    const gy = secTop+rowY(row)*scaleY;
+    const rc = rowColorMap[row.id];
+    svg+=`<line x1="${secLeft-8}" y1="${gy}" x2="${secRight+8}" y2="${gy}" stroke="${rc}" stroke-width="0.5" stroke-dasharray="3,3" opacity="0.3"/>`;
+  });
+
+  // ══ 게이지 치수 — 좌측 ══
+  const gBaseDX = secLeft - 20;
+  const drawGaugeDim = (row, ri, baseY) => {
+    const gy = secTop + rowY(row)*scaleY;
+    const dx = gBaseDX - ri*18;
+    const rc = rowColorMap[row.id];
+    svg+=`<line x1="${dx}" y1="${baseY}" x2="${dx}" y2="${gy}" stroke="#4a5568" stroke-width="0.8"/>`;
+    svg+=`<line x1="${dx-3}" y1="${baseY}" x2="${dx+3}" y2="${baseY}" stroke="#4a5568" stroke-width="0.8"/>`;
+    svg+=`<line x1="${dx-3}" y1="${gy}" x2="${dx+3}" y2="${gy}" stroke="#4a5568" stroke-width="0.8"/>`;
+    const my=(baseY+gy)/2;
+    svg+=`<text x="${dx-6}" y="${my+4}" text-anchor="middle" fill="${rc}" font-family="IBM Plex Mono" font-size="8" transform="rotate(-90,${dx-6},${my+4})">${row.letter}:g=${row.g}</text>`;
+  };
+  if(connType==='double'){
+    const hYpx = secTop + sec.B*scaleY;
+    activeRows.filter(r=>r.type==='v').forEach((row,ri)=>drawGaugeDim(row,ri,hYpx));
+    activeRows.filter(r=>r.type==='h').forEach((row,ri)=>drawGaugeDim(row,ri,hYpx));
+  } else {
+    activeRows.forEach((row,ri)=>drawGaugeDim(row,ri,secTop));
+  }
+
+  // ══ 피치 치수 — 하단 ══
+  const pitchY = secBot + 16;
+  const refRow = activeRows[0];
+  if(refRow){
+    const rxs = rowXsMap[refRow.id];
+    svg+=`<line x1="${secLeft}" y1="${pitchY}" x2="${padL+rxs[0]*scaleX}" y2="${pitchY}" stroke="#4a5568" stroke-width="0.8"/>`;
+    svg+=`<line x1="${secLeft}" y1="${pitchY-3}" x2="${secLeft}" y2="${pitchY+3}" stroke="#4a5568" stroke-width="0.8"/>`;
+    svg+=`<line x1="${padL+rxs[0]*scaleX}" y1="${pitchY-3}" x2="${padL+rxs[0]*scaleX}" y2="${pitchY+3}" stroke="#4a5568" stroke-width="0.8"/>`;
+    svg+=`<text x="${(secLeft+padL+rxs[0]*scaleX)/2}" y="${pitchY+12}" text-anchor="middle" fill="#bc8cff" font-family="IBM Plex Mono" font-size="8">e=${refRow.bolts[0].ep}</text>`;
+    for(let bi=1;bi<rxs.length;bi++){
+      const x1=padL+rxs[bi-1]*scaleX, x2=padL+rxs[bi]*scaleX;
+      svg+=`<line x1="${x1}" y1="${pitchY}" x2="${x2}" y2="${pitchY}" stroke="#4a5568" stroke-width="0.8"/>`;
+      svg+=`<line x1="${x1}" y1="${pitchY-3}" x2="${x1}" y2="${pitchY+3}" stroke="#4a5568" stroke-width="0.8"/>`;
+      svg+=`<line x1="${x2}" y1="${pitchY-3}" x2="${x2}" y2="${pitchY+3}" stroke="#4a5568" stroke-width="0.8"/>`;
+      svg+=`<text x="${(x1+x2)/2}" y="${pitchY+12}" text-anchor="middle" fill="#6e7681" font-family="IBM Plex Mono" font-size="8">s=${refRow.bolts[bi].ep}</text>`;
+    }
+  }
+
+  // 비임계 경로
+  for(const pth of nc.pathResults){
+    if(Math.abs(pth.An-nc.minAn)<0.01) continue;
+    const isDiag=pth.pathNodes.some((nd,i)=>i>0&&Math.abs(nd.g-pth.pathNodes[i-1].g)>0.1);
+    if(!isDiag) continue;
+    for(let i=1;i<pth.pathNodes.length;i++){
+      const p0=pth.pathNodes[i-1],p1=pth.pathNodes[i];
+      svg+=`<line x1="${padL+p0.x*scaleX}" y1="${secTop+rowY({g:p0.g,type:p0.type})*scaleY}" x2="${padL+p1.x*scaleX}" y2="${secTop+rowY({g:p1.g,type:p1.type})*scaleY}" stroke="#2d333b" stroke-width="0.7" opacity="0.5"/>`;
+    }
+  }
+
+  // 볼트 홀
+  activeRows.forEach(row=>{
+    const rc=rowColorMap[row.id],xs=rowXsMap[row.id],gy=secTop+rowY(row)*scaleY;
+    row.bolts.forEach((b,bi)=>{
+      const bx=padL+xs[bi]*scaleX,bId=boltFullId(row,bi);
+      const inCrit=critPath&&critPath.pathNodes.some(nd=>nd.boltId===bId);
+      const sc=inCrit?'#f85149':rc,sw=inCrit?2.2:1.3,fc=inCrit?'rgba(248,81,73,.2)':hexRgba(rc,0.1);
+      svg+=`<circle cx="${bx}" cy="${gy}" r="${boltR}" fill="${fc}" stroke="${sc}" stroke-width="${sw}"/>`;
+      const cr=boltR*0.36;
+      svg+=`<line x1="${bx-cr}" y1="${gy}" x2="${bx+cr}" y2="${gy}" stroke="${sc}" stroke-width="${sw*0.5}"/>`;
+      svg+=`<line x1="${bx}" y1="${gy-cr}" x2="${bx}" y2="${gy+cr}" stroke="${sc}" stroke-width="${sw*0.5}"/>`;
+      svg+=`<text x="${bx}" y="${gy-boltR-3}" text-anchor="middle" fill="${sc}" font-family="IBM Plex Mono" font-size="8" font-weight="600">${bId}</text>`;
+    });
+  });
+
+  // 임계 경로
+  if(critPath){
+    for(let i=1;i<critPath.pathNodes.length;i++){
+      const p0=critPath.pathNodes[i-1],p1=critPath.pathNodes[i];
+      svg+=`<line x1="${padL+p0.x*scaleX}" y1="${secTop+rowY({g:p0.g,type:p0.type})*scaleY}" x2="${padL+p1.x*scaleX}" y2="${secTop+rowY({g:p1.g,type:p1.type})*scaleY}" stroke="#f85149" stroke-width="2.3" stroke-dasharray="5,3" opacity="0.92"/>`;
+    }
+    const cBolts=critPath.pathNodes.map(nd=>nd.boltId).join('→');
+    svg+=`<text x="${W/2}" y="${H-5}" text-anchor="middle" fill="#f85149" font-family="IBM Plex Mono" font-size="8.5">임계: ${cBolts} | An,min=${critPath.An.toFixed(0)}mm²</text>`;
+  }
+  svg+='</svg>';
+  const title = panel.querySelector('.canvas-title');
+  title.insertAdjacentHTML('afterend', svg);
+}
+
+function hexToRgb(hex){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+function hexRgba(hex,a){ return `rgba(${hexToRgb(hex)},${a})`; }
+
+// 행 알파벳 → 색상 (a=orange, b=blue, c=green, d=purple ...)
+const ROW_PALETTE = ['#ffa657','#58a6ff','#3fb950','#bc8cff','#f78166','#39d353','#79c0ff','#ffb347'];
+function rowColorByLetter(letter){
+  const idx = letter.charCodeAt(0) - 97;
+  return ROW_PALETTE[idx % ROW_PALETTE.length];
+}
+
+// ══════════════════════════════════════════
+//  측면도 — L형강 단면 + 행별 볼트 (패널 꽉 채움)
+// ══════════════════════════════════════════
+function drawSideView(res){
+  const panel = document.getElementById('panelSide');
+  const ph = document.getElementById('sidePlaceholder');
+  const old = panel.querySelector('svg.sideSvg');
+  if(old) old.remove();
+  if(!res || !res.sec){ph.style.display='flex';return;}
+  ph.style.display='none';
+
+  const sec=res.sec;
+  const d=(lastResult?.boltDiam)||parseInt(document.getElementById('boltDiam').value)||20;
+  const dhole=getDhole(d);
+  const nc=res.netCalc;
+  const activeRows=nc.activeRows;
+
+  const panelW=panel.clientWidth||260;
+  const panelH=(panel.clientHeight||320)-22;
+  const W=panelW, H=Math.max(panelH,220);
+
+  // 단면 스케일
+  const effB=sec.B;
+  const maxG=Math.max(...activeRows.map(r=>r.g),10);
+  // B는 최소 maxG 이상 (게이지가 B 초과 시 경고 표시)
+  const csScale=Math.min((W*0.52)/effB,(H*0.52)/effB,2.2);
+  const B_px=effB*csScale;
+  const t_px=Math.max(4,sec.t*csScale);
+
+  const originX=W*0.48-B_px*0.38;
+  const originY=H*0.48-B_px*0.48;
+  const heelX=originX, heelY=originY+B_px;
+
+  const ROW_COLORS=['#ffa657','#58a6ff','#3fb950','#bc8cff','#f78166','#39d353','#79c0ff','#ffb347'];
+
+  let svg=`<svg class="sideSvg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="flex:1;width:100%;display:block;background:#0d1117;border-radius:4px">`;
+
+  // 수직 플랜지 ㅣ
+  svg+=`<rect x="${heelX}" y="${originY}" width="${t_px}" height="${B_px}" fill="rgba(255,166,87,0.12)" stroke="#ffa657" stroke-width="1.8"/>`;
+  // 수평 플랜지 ㅡ
+  svg+=`<rect x="${heelX}" y="${heelY}" width="${B_px}" height="${t_px}" fill="rgba(255,166,87,0.12)" stroke="#ffa657" stroke-width="1.8"/>`;
+
+  // Heel 표시
+  svg+=`<circle cx="${heelX+t_px/2}" cy="${heelY+t_px/2}" r="3" fill="#58a6ff" opacity="0.8"/>`;
+  svg+=`<text x="${heelX+t_px+5}" y="${heelY+t_px/2+4}" fill="#58a6ff" font-family="IBM Plex Mono" font-size="8">Heel</text>`;
+
+  // B치수 (수평)
+  const hDimY=heelY+t_px+18;
+  svg+=`<line x1="${heelX}" y1="${hDimY}" x2="${heelX+B_px}" y2="${hDimY}" stroke="#3d444d" stroke-width="0.8"/>`;
+  svg+=`<line x1="${heelX}" y1="${hDimY-4}" x2="${heelX}" y2="${hDimY+4}" stroke="#3d444d" stroke-width="0.8"/>`;
+  svg+=`<line x1="${heelX+B_px}" y1="${hDimY-4}" x2="${heelX+B_px}" y2="${hDimY+4}" stroke="#3d444d" stroke-width="0.8"/>`;
+  svg+=`<text x="${heelX+B_px/2}" y="${hDimY+11}" text-anchor="middle" fill="#6e7681" font-family="IBM Plex Mono" font-size="9">${effB}mm</text>`;
+
+  // B치수 (수직)
+  const vDimX=heelX-18;
+  svg+=`<line x1="${vDimX}" y1="${originY}" x2="${vDimX}" y2="${heelY}" stroke="#3d444d" stroke-width="0.8"/>`;
+  svg+=`<line x1="${vDimX-4}" y1="${originY}" x2="${vDimX+4}" y2="${originY}" stroke="#3d444d" stroke-width="0.8"/>`;
+  svg+=`<line x1="${vDimX-4}" y1="${heelY}" x2="${vDimX+4}" y2="${heelY}" stroke="#3d444d" stroke-width="0.8"/>`;
+  svg+=`<text x="${vDimX-5}" y="${(originY+heelY)/2+4}" text-anchor="middle" fill="#6e7681" font-family="IBM Plex Mono" font-size="9" transform="rotate(-90 ${vDimX-5} ${(originY+heelY)/2+4})">${effB}mm</text>`;
+
+  const boltR=Math.max(4,d*csScale*0.28);
+
+  // ── 각 행의 볼트 표시 ──
+  activeRows.forEach((row,ri)=>{
+    const rc=ROW_COLORS[ri%ROW_COLORS.length];
+    const g=row.g;
+    const over=g>effB;
+    const sc=over?'#f85149':rc;
+    const gScaled=g*csScale;
+    const rowLabel=`${row.letter}행 (${row.type==='h'?'ㅡ':'ㅣ'})`;
+
+    if(row.type==='h'){
+      // 수평 플랜지: 게이지 = Heel에서 수평 끝 방향
+      const bx=heelX+gScaled;
+      const by=heelY+t_px/2;
+
+      // 게이지 치수선
+      const gDimY=heelY-10-ri*13;
+      svg+=`<line x1="${heelX}" y1="${gDimY}" x2="${bx}" y2="${gDimY}" stroke="${sc}" stroke-width="0.6" stroke-dasharray="2,2" opacity="0.6"/>`;
+      svg+=`<line x1="${heelX}" y1="${gDimY-3}" x2="${heelX}" y2="${gDimY+3}" stroke="${sc}" stroke-width="0.8"/>`;
+      svg+=`<line x1="${bx}" y1="${gDimY-3}" x2="${bx}" y2="${gDimY+3}" stroke="${sc}" stroke-width="0.8"/>`;
+      svg+=`<text x="${(heelX+bx)/2}" y="${gDimY-4}" text-anchor="middle" fill="${sc}" font-family="IBM Plex Mono" font-size="8">${rowLabel} g=${g}${over?'(>B)':''}</text>`;
+
+      // 볼트 기호 (행 알파벳 + 위치)
+      svg+=`<circle cx="${bx}" cy="${by}" r="${boltR}" fill="rgba(255,255,255,0.06)" stroke="${sc}" stroke-width="1.4"/>`;
+      const cr=boltR*0.4;
+      svg+=`<line x1="${bx-cr}" y1="${by}" x2="${bx+cr}" y2="${by}" stroke="${sc}" stroke-width="0.8"/>`;
+      svg+=`<line x1="${bx}" y1="${by-cr}" x2="${bx}" y2="${by+cr}" stroke="${sc}" stroke-width="0.8"/>`;
+      svg+=`<text x="${bx}" y="${by+boltR+11}" text-anchor="middle" fill="${sc}" font-family="IBM Plex Mono" font-size="8" font-weight="600">${row.letter}행</text>`;
+
+    } else {
+      // 수직 플랜지: 게이지 = 수직 플랜지 끝(위)에서 아래 방향
+      const bx=heelX+t_px/2;
+      const by=originY+gScaled;
+
+      // 게이지 치수선
+      const gDimX=heelX+t_px+10+ri*42;
+      svg+=`<line x1="${gDimX}" y1="${originY}" x2="${gDimX}" y2="${by}" stroke="${sc}" stroke-width="0.6" stroke-dasharray="2,2" opacity="0.6"/>`;
+      svg+=`<line x1="${gDimX-3}" y1="${originY}" x2="${gDimX+3}" y2="${originY}" stroke="${sc}" stroke-width="0.8"/>`;
+      svg+=`<line x1="${gDimX-3}" y1="${by}" x2="${gDimX+3}" y2="${by}" stroke="${sc}" stroke-width="0.8"/>`;
+      svg+=`<text x="${gDimX+4}" y="${(originY+by)/2+4}" fill="${sc}" font-family="IBM Plex Mono" font-size="8">${rowLabel} g=${g}${over?'(>B)':''}</text>`;
+
+      // 볼트 기호
+      svg+=`<circle cx="${bx}" cy="${by}" r="${boltR}" fill="rgba(88,166,255,0.08)" stroke="${sc}" stroke-width="1.4"/>`;
+      const cr=boltR*0.4;
+      svg+=`<line x1="${bx-cr}" y1="${by}" x2="${bx+cr}" y2="${by}" stroke="${sc}" stroke-width="0.8"/>`;
+      svg+=`<line x1="${bx}" y1="${by-cr}" x2="${bx}" y2="${by+cr}" stroke="${sc}" stroke-width="0.8"/>`;
+      svg+=`<text x="${bx+boltR+4}" y="${by+4}" fill="${sc}" font-family="IBM Plex Mono" font-size="8" font-weight="600">${row.letter}행</text>`;
+    }
+  });
+
+  // g>B 경고
+  const anyOver=activeRows.some(r=>r.g>effB);
+  if(anyOver) svg+=`<text x="${W/2}" y="${H-6}" text-anchor="middle" fill="#f85149" font-family="IBM Plex Mono" font-size="9">⚠ g > B(${effB}mm): 볼트 단면 외부!</text>`;
+
+  svg+=`<text x="${W/2}" y="14" text-anchor="middle" fill="#8b949e" font-family="IBM Plex Mono" font-size="9">${sec.name} — ${connType==='single'?'일면':'양면'} | t=${sec.t}mm</text>`;
+  svg+='</svg>';
+
+  const title=panel.querySelector('.canvas-title');
+  title.insertAdjacentHTML('afterend', svg);
+}
+
+// ══════════════════════════════════════════
+//  RESULTS
+// ══════════════════════════════════════════
+function renderResults(optimal,allResults){
+  const panel=document.getElementById('resultContent');
+  if(!optimal){
+    panel.innerHTML=`<div class="no-result">⚠ DB 내 모든 규격이 Pu=${lastResult.Pu}kN 불만족. 하중을 줄이거나 강종을 변경하세요.</div>`;
+    return;
+  }
+  const r=optimal,s=r.sec,grade=lastResult.grade;
+  const violCount=r.netCalc.violations.length;
+
+  let html=`<div style="padding-top:10px">
+    <div class="optimal-banner">
+      <span style="font-size:20px">✅</span>
+      <div>
+        <div class="sname">${s.name}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:2px">
+          <span class="tag tag-g">최적 단면</span>
+          <span class="tag tag-o" style="margin-left:3px">w=${(s.w*1000).toFixed(2)}N/m</span>
+          <span class="tag tag-b" style="margin-left:3px">${grade}</span>
+          <span class="tag tag-p" style="margin-left:3px">${connType==='single'?'일면':'양면'}</span>
+          ${violCount>0?`<span class="tag" style="margin-left:3px;background:rgba(248,81,73,.15);color:var(--red)">⚠ KDS ${violCount}건</span>`:'<span class="tag tag-g" style="margin-left:3px">KDS OK</span>'}
+        </div>
+      </div>
+      <div style="margin-left:auto"><button class="btn-report" onclick="openReport()">📋 계산 과정</button></div>
+    </div>`;
+
+  // KDS 위반 목록
+  if(violCount>0){
+    html+=`<div style="background:rgba(248,81,73,.07);border:1px solid var(--red);border-radius:var(--radius);padding:8px 12px;margin-bottom:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--red)">
+      <strong>KDS 14 31 25 위반:</strong> ${r.netCalc.violations.join(' | ')}
+    </div>`;
+  }
+
+  html+=`<div class="result-grid">
+    <div class="result-card"><div class="rc-label">Pu</div><div class="rc-value">${r.Pu.toFixed(1)}<span class="rc-unit">kN</span></div></div>
+    <div class="result-card optimal"><div class="rc-label">ΦPn 지배강도</div><div class="rc-value">${r.phiPn.toFixed(1)}<span class="rc-unit">kN</span></div><div class="rc-check ok">D/C=${r.ratio.toFixed(3)}</div></div>
+    <div class="result-card"><div class="rc-label">ΦPn1 총단면항복</div><div class="rc-value">${r.phiPn1.toFixed(1)}<span class="rc-unit">kN</span></div><div class="rc-check ${r.phiPn===r.phiPn1?'warn':'info'}">${r.phiPn===r.phiPn1?'★ 지배':'—'}</div></div>
+    <div class="result-card"><div class="rc-label">ΦPn2 순단면파단</div><div class="rc-value">${r.phiPn2.toFixed(1)}<span class="rc-unit">kN</span></div><div class="rc-check ${r.phiPn===r.phiPn2?'warn':'info'}">${r.phiPn===r.phiPn2?'★ 지배':'—'}</div></div>
+    <div class="result-card"><div class="rc-label">ΦPn3 블록전단</div><div class="rc-value">${r.phiPn3.toFixed(1)}<span class="rc-unit">kN</span></div><div class="rc-check ${r.phiPn===r.phiPn3?'warn':'info'}">${r.phiPn===r.phiPn3?'★ 지배':'—'}</div></div>
+    <div class="result-card"><div class="rc-label">Ag</div><div class="rc-value">${s.Ag.toFixed(0)}<span class="rc-unit">mm²</span></div></div>
+    <div class="result-card"><div class="rc-label">An,min</div><div class="rc-value">${r.An_min.toFixed(0)}<span class="rc-unit">mm²</span></div></div>
+    <div class="result-card"><div class="rc-label">U 전단지연</div><div class="rc-value">${r.U.toFixed(4)}</div><div class="rc-check info">${connType==='double'?'양면=1.0':'일면'}</div></div>
+    <div class="result-card"><div class="rc-label">Ae=U·An</div><div class="rc-value">${r.Ae.toFixed(0)}<span class="rc-unit">mm²</span></div></div>
+    <div class="result-card"><div class="rc-label">Fy/Fu</div><div class="rc-value" style="font-size:13px">${r.Fy}/${r.Fu}<span class="rc-unit">MPa</span></div></div>
+    <div class="result-card"><div class="rc-label">dhole</div><div class="rc-value">${r.dhole}<span class="rc-unit">mm</span></div><div class="rc-check info">+(${lastResult.boltDiam<=22?2:3})</div></div>
+  </div>
+  <div class="formula-block" style="border-left-color:var(--yellow)">
+    <div class="ft">지배 한계상태</div>
+    <span style="color:var(--orange)">▶ ${r.governing}</span><br>
+    ΦPn=min(${r.phiPn1.toFixed(1)},${r.phiPn2.toFixed(1)},${r.phiPn3.toFixed(1)})=<span style="color:var(--green);font-weight:500">${r.phiPn.toFixed(1)}kN</span> ≥ Pu=<span style="color:var(--orange)">${r.Pu.toFixed(1)}kN</span> → <span style="color:var(--green)">OK ✓</span>
+  </div>
+  <div class="sub-title">
+    📊 전체 단면 검토
+    <span style="font-size:9px;color:var(--text3);font-weight:400;margin-left:8px">행 더블클릭 → 상세 계산 팝업</span>
+  </div>
+  <div class="table-wrap"><table><thead><tr>
+    <th>단면</th><th>t</th><th>Ag</th><th>An,min</th><th>U</th><th>Ae</th>
+    <th>ΦPn1</th><th>ΦPn2</th><th>ΦPn3</th><th>ΦPn</th><th>D/C</th><th>판정</th>
+  </tr></thead><tbody>`;
+  allResults.forEach((r2,rowIdx)=>{
+    if(r2.error){html+=`<tr data-idx="${rowIdx}"><td>${r2.sec.name}</td><td colspan="12" style="color:var(--text3)">${r2.error}</td></tr>`;return;}
+    const isOpt=r2.sec.name===optimal.sec.name;
+    let ngReason='';
+    if(!r2.pass){
+      let minVal = Math.min(r2.phiPn1, r2.phiPn2, r2.phiPn3);
+      const lack=((r2.Pu-minVal)/r2.Pu*100).toFixed(1);
+      ngReason=minVal===r2.phiPn1?`총단면항복 부족 -${lack}%`:(minVal===r2.phiPn2?`순단면파단 부족 -${lack}%`:`블록전단 부족 -${lack}%`);
+    }
+    html+=`<tr class="${isOpt?'optimal-row':''}" style="cursor:pointer" title="더블클릭 → 상세 계산" ondblclick="openSectionDetail(${rowIdx})">
+      <td>${r2.sec.name}</td><td>${r2.sec.t}</td><td>${r2.sec.Ag.toFixed(0)}</td>
+      <td>${r2.An_min.toFixed(0)}</td><td>${r2.U.toFixed(3)}</td><td>${r2.Ae.toFixed(0)}</td>
+      <td>${r2.phiPn1.toFixed(1)}</td><td>${r2.phiPn2.toFixed(1)}</td><td>${r2.phiPn3.toFixed(1)}</td><td>${r2.phiPn.toFixed(1)}</td>
+      <td style="color:${r2.ratio>=1?'var(--green)':'var(--red)'}">${r2.ratio.toFixed(3)}</td>
+      <td>${isOpt?'<span class="ok">★ 최적</span>':r2.pass?'<span class="ok">OK</span>':`<span style="color:var(--red)" title="${ngReason}">NG ⚠</span>`}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div></div>`;
+  panel.innerHTML=html;
+}
+
+// ══════════════════════════════════════════
+//  더블클릭 상세 팝업
+// ══════════════════════════════════════════
+function openSectionDetail(rowIdx){
+  if(!lastResult)return;
+  const r2=lastResult.allResults[rowIdx];
+  if(!r2||r2.error)return;
+  const s=r2.sec, d=lastResult.boltDiam, Pu=r2.Pu, pass=r2.pass;
+  const ng1=r2.phiPn1<Pu, ng2=r2.phiPn2<Pu, ng3=r2.phiPn3<Pu;
+  const def1=ng1?((Pu-r2.phiPn1)/Pu*100).toFixed(1):null;
+  const def2=ng2?((Pu-r2.phiPn2)/Pu*100).toFixed(1):null;
+  const def3=ng3?((Pu-r2.phiPn3)/Pu*100).toFixed(1):null;
+  const bc1=r2.phiPn1>=Pu?'#3fb950':'#f85149';
+  const bc2=r2.phiPn2>=Pu?'#3fb950':'#f85149';
+  const bc3=r2.phiPn3>=Pu?'#3fb950':'#f85149';
+  const b1w=(Math.min(r2.phiPn1/Pu,1.5)/1.5*100).toFixed(1);
+  const b2w=(Math.min(r2.phiPn2/Pu,1.5)/1.5*100).toFixed(1);
+  const b3w=(Math.min(r2.phiPn3/Pu,1.5)/1.5*100).toFixed(1);
+  const puLinePos=(1/1.5*100).toFixed(1);
+  const lim=getLimits(d,s.t);
+
+  let html=`
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px 14px;
+    background:${pass?'rgba(63,185,80,.07)':'rgba(248,81,73,.07)'};
+    border:1px solid ${pass?'var(--green)':'var(--red)'};border-radius:var(--radius)">
+    <span style="font-size:22px">${pass?'✅':'❌'}</span>
+    <div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:${pass?'var(--green)':'var(--red)'}">${s.name}</div>
+      <div style="font-size:10px;color:var(--text2)">B=${s.B}mm · t=${s.t}mm · Ag=${s.Ag}mm² · Cx=${s.Cx}mm · ${lastResult.grade}</div>
+    </div>
+    <div style="margin-left:auto;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px">
+      <div>Pu = <span style="color:var(--orange);font-size:14px;font-weight:600">${Pu.toFixed(1)} kN</span></div>
+      <div>ΦPn = <span style="color:${pass?'var(--green)':'var(--red)'};font-size:14px;font-weight:600">${r2.phiPn.toFixed(1)} kN</span></div>
+    </div>
+  </div>`;
+
+  if(!pass){
+    html+=`<div style="background:rgba(248,81,73,.1);border:1px solid var(--red);border-radius:var(--radius);
+      padding:10px 14px;margin-bottom:12px;font-family:'IBM Plex Mono',monospace;font-size:11px">
+      <div style="color:var(--red);font-weight:600;margin-bottom:5px">⚠ NG 사유 분석</div>
+      ${ng1?`<div style="color:var(--red)">• LS①(총단면 항복): ΦPn1=${r2.phiPn1.toFixed(2)}kN &lt; Pu=${Pu.toFixed(2)}kN → 강도 부족 ${def1}%</div>`:''}
+      ${ng2?`<div style="color:var(--red)">• LS②(순단면 파단): ΦPn2=${r2.phiPn2.toFixed(2)}kN &lt; Pu=${Pu.toFixed(2)}kN → 강도 부족 ${def2}%</div>`:''}
+      ${ng3?`<div style="color:var(--red)">• LS③(블록전단 파단): ΦPn3=${r2.phiPn3.toFixed(2)}kN &lt; Pu=${Pu.toFixed(2)}kN → 강도 부족 ${def3}%</div>`:''}
+      <div style="color:var(--red);margin-top:4px">• 지배 강도: ΦPn=min(${r2.phiPn1.toFixed(2)},${r2.phiPn2.toFixed(2)},${r2.phiPn3.toFixed(2)})=${r2.phiPn.toFixed(2)}kN</div>
+    </div>`;
+  }
+
+  html+=`<div style="margin-bottom:14px">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);margin-bottom:5px">강도 비교 (주황선 = Pu=${Pu.toFixed(1)}kN)</div>
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:10px;margin-bottom:3px">
+        <span style="color:var(--text2)">① 총단면 항복 ΦPn1</span>
+        <span style="color:${bc1};font-weight:600">${r2.phiPn1.toFixed(1)}kN ${ng1?`(부족 ${def1}%)`:(r2.phiPn1===r2.phiPn?'★지배':'')}</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:3px;height:14px;position:relative;overflow:hidden">
+        <div style="width:${b1w}%;height:100%;background:${bc1};border-radius:3px;opacity:.75"></div>
+        <div style="position:absolute;top:0;left:${puLinePos}%;width:2px;height:100%;background:var(--orange)"></div>
+      </div>
+    </div>
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:10px;margin-bottom:3px">
+        <span style="color:var(--text2)">② 순단면 파단 ΦPn2</span>
+        <span style="color:${bc2};font-weight:600">${r2.phiPn2.toFixed(1)}kN ${ng2?`(부족 ${def2}%)`:(r2.phiPn2===r2.phiPn?'★지배':'')}</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:3px;height:14px;position:relative;overflow:hidden">
+        <div style="width:${b2w}%;height:100%;background:${bc2};border-radius:3px;opacity:.75"></div>
+        <div style="position:absolute;top:0;left:${puLinePos}%;width:2px;height:100%;background:var(--orange)"></div>
+      </div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:10px;margin-bottom:3px">
+        <span style="color:var(--text2)">③ 블록전단 파단 ΦPn3</span>
+        <span style="color:${bc3};font-weight:600">${r2.phiPn3.toFixed(1)}kN ${ng3?`(부족 ${def3}%)`:(r2.phiPn3===r2.phiPn?'★지배':'')}</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:3px;height:14px;position:relative;overflow:hidden">
+        <div style="width:${b3w}%;height:100%;background:${bc3};border-radius:3px;opacity:.75"></div>
+        <div style="position:absolute;top:0;left:${puLinePos}%;width:2px;height:100%;background:var(--orange)"></div>
+      </div>
+    </div>
+  </div>`;
+
+  // LS1 상세
+  html+=`<div class="sub-title">① 총단면 항복 (Gross Section Yielding)</div>
+  <div class="formula-block" style="border-left-color:${ng1?'var(--red)':'var(--green)'}">
+    <div class="ft">KDS 41 31 00 LS①</div>
+    <span class="fn">ΦPn1 = 0.9 × Fy × Ag</span><br>
+    Fy=<span class="fv">${r2.Fy}MPa</span> (${lastResult.grade}, t=${s.t}mm) &nbsp; Ag=<span class="fv">${s.Ag}mm²</span><br>
+    ΦPn1 = 0.9 × ${r2.Fy} × ${s.Ag} = <span class="${ng1?'fdim':'fres'}">${(r2.phiPn1*1000).toFixed(0)}N = ${r2.phiPn1.toFixed(2)}kN</span><br>
+    ${ng1?`<span class="fdim">✗ ${r2.phiPn1.toFixed(2)} &lt; Pu ${Pu.toFixed(2)}kN → NG (${def1}% 부족)</span>`
+         :`<span class="fres">✓ ${r2.phiPn1.toFixed(2)} ≥ Pu ${Pu.toFixed(2)}kN → OK</span>`}
+  </div>`;
+
+  // LS2 상세
+  const hRowD=rows.find(r=>r.type==='h');
+  let LconnD=0; if(hRowD) for(let i=1;i<hRowD.bolts.length;i++) LconnD+=hRowD.bolts[i].ep;
+  if(LconnD===0) LconnD=hRowD?.bolts[0]?.ep||50;
+
+  html+=`<div class="sub-title">② 순단면 파단 (Net Section Fracture)</div>
+  <div class="formula-block" style="border-left-color:${ng2?'var(--red)':'var(--orange)'}">
+    <div class="ft">KDS 41 31 00 LS②</div>
+    <span class="fn">ΦPn2 = 0.75 × Fu × Ae</span><br>
+    dhole = M${d}+(${d<=22?2:3}) = <span class="fv">${r2.dhole}mm</span><br>
+    An,min = <span class="fv">${r2.An_min.toFixed(1)}mm²</span>${r2.netCalc.critPath?`  (임계: ${r2.netCalc.critPath.label.substring(0,60)}…)`:''}<br>
+    ${connType==='double'
+      ?`U = 1.0 (양면 접합)`
+      :`U = 1−(${s.Cx}/${LconnD}) = <span class="fv">${r2.U.toFixed(4)}</span>`}<br>
+    Ae = U×An,min = ${r2.U.toFixed(4)}×${r2.An_min.toFixed(1)} = <span class="fv">${r2.Ae.toFixed(1)}mm²</span><br>
+    Fu = <span class="fv">${r2.Fu}MPa</span><br>
+    ΦPn2 = 0.75×${r2.Fu}×${r2.Ae.toFixed(1)} = <span class="${ng2?'fdim':'fres'}">${(r2.phiPn2*1000).toFixed(0)}N = ${r2.phiPn2.toFixed(2)}kN</span><br>
+    ${ng2?`<span class="fdim">✗ ${r2.phiPn2.toFixed(2)} &lt; Pu ${Pu.toFixed(2)}kN → NG (${def2}% 부족)</span>`
+         :`<span class="fres">✓ ${r2.phiPn2.toFixed(2)} ≥ Pu ${Pu.toFixed(2)}kN → OK</span>`}
+  </div>`;
+
+  // LS3 상세
+  html+=`<div class="sub-title">③ 블록전단 파단 (Block Shear Rupture)</div>`;
+  if (!r2.blockShearH && !r2.blockShearV) {
+    html+=`<div class="formula-block" style="border-left-color:var(--text3)">
+      블록전단 검토 대상 볼트 행이 존재하지 않습니다.
+    </div>`;
+  } else {
+    const renderBSBlock = (bs) => {
+      if(!bs) return '';
+      const isGoverningBS = r2.blockShearDetail && r2.blockShearDetail.type === bs.type;
+      const isNG = (bs.phiRn) < Pu * 1000;
+      const def = isNG ? (((Pu * 1000) - bs.phiRn) / (Pu * 1000) * 100).toFixed(1) : null;
+      return `<div class="formula-block" style="border-left-color:${isGoverningBS ? (isNG ? 'var(--red)' : 'var(--green)') : 'var(--border2)'}; ${!isGoverningBS ? 'opacity: 0.7' : ''}">
+        <div class="ft">${bs.type==='h'?'수평 플랜지':'수직 플랜지'} 블록전단 강도 ${isGoverningBS ? '★지배' : ''}</div>
+        <span class="fn">Rn = min(0.6 × Fu × Anv + Ubs × Fu × Ant, &nbsp; 0.6 × Fy × Agv + Ubs × Fu × Ant)</span><br>
+        • 전단면적: Lv=${bs.sumLv}mm (행수 n=${bs.n}, 구멍 nv=${bs.sumHolesVolts})<br>
+        &nbsp;&nbsp; Agv = Lv × t = ${bs.sumLv} × ${s.t} = ${bs.Agv.toFixed(0)} mm²<br>
+        &nbsp;&nbsp; Anv = (Lv - nv × dhole) × t = (${bs.sumLv} - ${bs.sumHolesVolts} × ${r2.dhole}) × ${s.t} = ${bs.Anv.toFixed(0)} mm²<br>
+        • 인장면적: 안쪽행 게이지 g1=${bs.g1}mm (자유단 폭 Wt = B - g1 = ${s.B} - ${bs.g1} = ${bs.Wt}mm, 구멍공제 n-0.5=${bs.n-0.5})<br>
+        &nbsp;&nbsp; Ant = (Wt - (n - 0.5) × dhole) × t = (${bs.Wt} - ${bs.n - 0.5} × ${r2.dhole}) × ${s.t} = ${bs.Ant.toFixed(0)} mm²<br>
+        • 한계상태 식 대입 (Ubs=${bs.Ubs.toFixed(1)}):<br>
+        &nbsp;&nbsp; 1) 전단파단+인장파단 = 0.6 × Fu × Anv + Ubs × Fu × Ant<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 0.6 × ${r2.Fu} × ${bs.Anv.toFixed(0)} + ${bs.Ubs.toFixed(1)} \times ${r2.Fu} × ${bs.Ant.toFixed(0)} = <span class="fv">${bs.Rn1.toFixed(0)} N</span><br>
+        &nbsp;&nbsp; 2) 전단항복+인장파단 = 0.6 × Fy × Agv + Ubs × Fu × Ant<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 0.6 × ${r2.Fy} × ${bs.Agv.toFixed(0)} + ${bs.Ubs.toFixed(1)} \times ${r2.Fu} × ${bs.Ant.toFixed(0)} = <span class="fv">${bs.Rn2.toFixed(0)} N</span><br>
+        • 공칭강도 Rn = min(${bs.Rn1.toFixed(0)}, ${bs.Rn2.toFixed(0)}) = ${bs.Rn.toFixed(0)} N<br>
+        • 설계강도 ΦRn = 0.75 × Rn = ${bs.phiRn.toFixed(0)} N = ${bs.phiRn.toFixed(2)} kN<br>
+        ${isNG ? `<span class="fdim">✗ ${bs.phiRn.toFixed(2)} &lt; Pu ${Pu.toFixed(2)}kN → NG (${def}% 부족)</span>`
+             : `<span class="fres">✓ ${bs.phiRn.toFixed(2)} ≥ Pu ${Pu.toFixed(2)}kN → OK</span>`}
+      </div>`;
+    };
+    html += renderBSBlock(r2.blockShearH);
+    html += renderBSBlock(r2.blockShearV);
+  }
+
+  // 지배 강도
+  html+=`<div class="sub-title">④ 지배 강도 · 최종 판정</div>
+  <div class="formula-block" style="border-left-color:${pass?'var(--green)':'var(--red)'}">
+    ΦPn = min(${r2.phiPn1.toFixed(2)}, ${r2.phiPn2.toFixed(2)}, ${r2.phiPn3.toFixed(2)}) = <span class="${pass?'fres':'fdim'}">${r2.phiPn.toFixed(2)}kN</span>
+    &nbsp; ← <span style="color:var(--yellow)">${r2.governing}</span><br>
+    D/C = ${Pu.toFixed(2)}/${r2.phiPn.toFixed(2)} = <span class="${pass?'fres':'fdim'}">${r2.ratio.toFixed(4)}</span><br><br>
+    ${pass
+      ?`<span class="fres" style="font-size:13px">✅ OK — ΦPn ${r2.phiPn.toFixed(2)}kN ≥ Pu ${Pu.toFixed(2)}kN</span>`
+      :Reflect?`<span class="fdim" style="font-size:13px">❌ NG — ΦPn ${r2.phiPn.toFixed(2)}kN &lt; Pu ${Pu.toFixed(2)}kN (${((Pu-r2.phiPn)/Pu*100).toFixed(1)}% 부족)</span>`
+      :`<span class="fdim" style="font-size:13px">❌ NG — ΦPn ${r2.phiPn.toFixed(2)}kN &lt; Pu ${Pu.toFixed(2)}kN (${((Pu-r2.phiPn)/Pu*100).toFixed(1)}% 부족)</span>`}
+  </div>`;
+
+  // 파단 경로 전수
+  if(r2.netCalc.pathResults.length>0){
+    html+=`<div class="sub-title">⑤ 파단 경로 전수 (${r2.netCalc.pathResults.length}개)</div>`;
+    html+=`<div class="formula-block" style="margin-bottom:8px">
+      <span class="fn">An = Ag − n×dhole×t + Σ[s²/(4g)×t]</span><br>
+      Ag=${s.Ag} | dhole=${r2.dhole} | t=${s.t}
+    </div>`;
+    r2.netCalc.pathResults.forEach((p,i)=>{
+      const isCrit=Math.abs(p.An-r2.netCalc.minAn)<0.01;
+      const pNodes=p.pathNodes, n2=pNodes.length;
+      const pathStr=pNodes.map(nd=>nd.boltId).join('→');
+      const segs=[];
+      for(let k=1;k<n2;k++){
+        const prev=pNodes[k-1],curr=pNodes[k];
+        const sm=curr.x-prev.x, gm=Math.abs(curr.g-prev.g);
+        let c=0; if(sm>0.1&&gm>0.1) c=(sm*sm)/(4*gm)*s.t;
+        segs.push({from:prev.boltId,to:curr.boltId,s:sm,g:gm,corr:c});
+      }
+      const holeTerm=n2*r2.dhole*s.t;
+      const corrTotal=segs.reduce((a,sg)=>a+sg.corr,0);
+      const An_c=Math.max(s.Ag-holeTerm+corrTotal,0);
+      const bc=isCrit?'var(--red)':'var(--border2)';
+      html+=`<div style="background:${isCrit?'rgba(248,81,73,0.06)':'rgba(255,255,255,0.01)'};border:1px solid ${bc};border-left:3px solid ${isCrit?'var(--red)':'var(--blue)'};border-radius:var(--radius);padding:8px 12px;margin-bottom:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.8">`;
+      html+=`<b style="color:${isCrit?'var(--red)':'var(--text2)'}">(${i+1}) ${pathStr}</b>${isCrit?' <b style="color:var(--red)">★ An,min</b>':''}<br>`;
+      html+=`An = ${s.Ag} − ${n2}×${r2.dhole}×${s.t}`;
+      segs.forEach(sg=>{ if(sg.corr>0.01) html+=` + ${sg.s}²/(4×${sg.g})×${s.t}`; });
+      html+=`<br>&nbsp;= ${s.Ag} − <span class="fv">${holeTerm.toFixed(0)}</span>`;
+      segs.forEach(sg=>{ if(sg.corr>0.01) html+=` + <span class="fv">${sg.corr.toFixed(1)}</span>`; });
+      html+=`<br>&nbsp;= <span class="${isCrit?'fdim':'fres'}" style="font-weight:600">${An_c.toFixed(1)} mm²</span>`;
+      html+=`</div>`;
+    });
+  }
+
+  document.getElementById('reportBody').innerHTML=html;
+  document.getElementById('reportModal').classList.add('open');
+}
+
+// ══════════════════════════════════════════
+//  MODAL — 계산 과정 상세 보고서
+// ══════════════════════════════════════════
+function openReport(){
+  if(!lastResult||!lastResult.optimal) return;
+  const r=lastResult.optimal, s=r.sec, d=lastResult.boltDiam, grade=lastResult.grade;
+  const nc=r.netCalc;
+  let html='';
+
+  const activeR = connType==='single'
+    ? rows.filter(function(rw){return rw.type==='h';}).sort(function(a,b){return a.g-b.g;})
+    : rows.filter(function(rw){return rw.type==='v';}).sort(function(a,b){return a.g-b.g;})
+      .concat(rows.filter(function(rw){return rw.type==='h';}).sort(function(a,b){return a.g-b.g;}));
+
+  // ① 설계 조건
+  var boltLayout='';
+  activeR.forEach(function(row){
+    var rc=row.type==='h'?'var(--orange)':'var(--blue)';
+    var tp=row.type==='h'?'수평(ㅡ)':'수직(ㅣ)';
+    var bList=row.bolts.map(function(b,i){
+      return '<b>'+boltFullId(row,i)+'</b>: '+(i===0?'e':'p')+'='+b.ep+'mm';
+    }).join(', ');
+    boltLayout+='<span style="color:'+rc+'"><b>'+row.letter+'행</b>['+tp+'] g='+row.g+'mm:</span> '+bList+'<br>';
+  });
+
+  html+='<div class="sub-title">① 설계 조건 요약</div>';
+  html+='<div class="formula-block">';
+  html+='<div class="ft">단면 · 재료 · 볼트</div>';
+  html+='단면=<span class="fv">'+s.name+'</span> | t=<span class="fv">'+s.t+'mm</span> | Ag=<span class="fv">'+s.Ag+'mm²</span> | Cx=<span class="fv">'+s.Cx+'mm</span><br>';
+  html+='강종=<span class="fv">'+grade+'</span> Fy=<span class="fv">'+r.Fy+'MPa</span> Fu=<span class="fv">'+r.Fu+'MPa</span> | M'+d+' dhole=<span class="fv">'+r.dhole+'mm</span><br>';
+  html+='접합=<span class="fv">'+(connType==='single'?'일면':'양면')+'</span><br><br>';
+  html+='<b style="color:var(--text2)">볼트 배치:</b><br>'+boltLayout;
+  html+='</div>';
+
+  // 파단 경로 규칙
+  html+='<div class="formula-block" style="border-left-color:var(--purple)">';
+  html+='<div class="ft">파단 경로 규칙</div>';
+  html+='방향: 수직 플랜지(ㅣ) 위→아래 → Heel → 수평 플랜지(ㅡ) <b style="color:var(--red)">(역행불가)</b><br>';
+  html+='규칙1: row_idx 단조 증가 (위→아래 단방향)<br>';
+  html+='규칙2: col 역행 금지 (col은 같거나 증가만 허용)<br>';
+  html+='규칙3: 최하단행 도달 시 유효경로 확정<br>';
+  html+='보정식: <span class="fn">+s²/(4g)×t</span> [s=x차이, g=게이지차이, 엣지구간 제외]';
+  html+='</div>';
+
+  // ② KDS 검토
+  html+='<div class="sub-title">② KDS 14 31 25 간격 검토 (t='+s.t+'mm)</div>';
+  var lim=getLimits(d,s.t);
+  html+='<div class="formula-block">';
+  html+='최소간격=2.5×'+d+'=<span class="fres">'+lim.minSpacing+'mm</span> | 최대=min('+(24*s.t)+',300)=<span class="fres">'+lim.maxSpacing+'mm</span><br>';
+  html+='최소연단=1.5×'+d+'=<span class="fres">'+lim.minEdge+'mm</span> | 최대=min('+(12*s.t)+',150)=<span class="fres">'+lim.maxEdge+'mm</span>';
+  html+='</div>';
+  html+='<div class="table-wrap" style="margin-bottom:10px"><table>';
+  html+='<thead><tr><th>볼트</th><th>플랜지</th><th>항목</th><th>실측</th><th>허용범위</th><th>판정</th></tr></thead><tbody>';
+  activeR.forEach(function(row){
+    row.bolts.forEach(function(b,bi){
+      var bId=boltFullId(row,bi);
+      var isEdge=(bi===0);
+      var fl=row.type==='h'?'수평':'수직';
+      var ec=checkLimit(b.ep,lim,isEdge);
+      var gc=checkLimit(row.g,lim,false);
+      var eCls=ec.status==='ok'?'ok':ec.status==='warn'?'warn':'ng';
+      var gCls=gc.status==='ok'?'ok':gc.status==='warn'?'warn':'ng';
+      html+='<tr class="'+(ec.status==='err'?'critical-row':'')+'"><td><b style="color:var(--accent)">'+bId+'</b></td>';
+      html+='<td>'+fl+'</td><td>'+(isEdge?'연단(e)':'피치(p)')+'</td><td>'+b.ep+'mm</td>';
+      html+='<td>'+(isEdge?lim.minEdge+'~'+lim.maxEdge:lim.minSpacing+'~'+lim.maxSpacing)+'mm</td>';
+      html+='<td class="'+eCls+'">'+ec.msg+'</td></tr>';
+      if(isEdge){
+        html+='<tr class="'+(gc.status==='err'?'critical-row':'')+'"><td>'+row.letter+'행-g</td>';
+        html+='<td>'+fl+'</td><td>게이지</td><td>'+row.g+'mm</td>';
+        html+='<td>'+lim.minSpacing+'~'+lim.maxSpacing+'mm</td>';
+        html+='<td class="'+gCls+'">'+gc.msg+'</td></tr>';
+      }
+    });
+  });
+  html+='</tbody></table></div>';
+
+  // ③ 파단경로 전수 — 홀 개수별 그룹
+  html+='<div class="sub-title">③ 순단면적 An 계산 — 전체 유효 파단 경로 ('+nc.pathResults.length+'개)</div>';
+
+  // 행 배치 설명
+  html+='<div class="formula-block" style="border-left-color:var(--purple);margin-bottom:10px">';
+  html+='<div class="ft">행 배치 (위→아래)</div>';
+  nc.orderedByRowIdx.forEach(function(row,i){
+    html+='<span style="color:'+rowColorByLetter(row.letter)+'">['+i+']<b>'+row.letter+'행</b>(g='+row.g+'mm,'+(row.type==='h'?'수평':'수직')+')</span>';
+    if(i<nc.orderedByRowIdx.length-1) html+=' → ';
+  });
+  html+='</div>';
+
+  // 기본 공식
+  html+='<div class="formula-block" style="border-left-color:var(--blue);margin-bottom:12px">';
+  html+='<div class="ft">An 계산 기본 공식 (KDS 41 31 00)</div>';
+  html+='<span class="fn">An = Ag − n×dhole×t + Σ[ s²/(4g) × t ]</span><br>';
+  html+='Ag=<span class="fv">'+s.Ag+'mm²</span> | dhole=<span class="fv">'+r.dhole+'mm</span> (M'+d+'+'+(d<=22?2:3)+') | t=<span class="fv">'+s.t+'mm</span><br>';
+  html+='s=두 볼트 수평거리(x차이) | g=두 볼트 게이지차(y차이)<br>';
+  html+='[시점/종점 엣지 진입출 구간은 수직선 → 보정 없음]';
+  html+='</div>';
+
+  var holeGroups=nc.groupedByHoles||{};
+  var groupKeys=Object.keys(holeGroups).map(Number).sort(function(a,b){return a-b;});
+
+  if(groupKeys.length===0){
+    html+='<div style="color:var(--text3);font-family:IBM Plex Mono,monospace;padding:16px;text-align:center;border:1px dashed var(--border);border-radius:var(--radius)">';
+    html+='유효한 파단 경로 없음<br>볼트 행 구성 확인 필요 (최하단행 도달 경로 없음)</div>';
+  }
+
+  groupKeys.forEach(function(nHoles){
+    var group=holeGroups[nHoles];
+    html+='<div style="margin:16px 0 5px;padding:5px 10px;background:var(--bg3);border-radius:var(--radius);';
+    html+='font-family:Space Grotesk,sans-serif;font-size:12px;font-weight:700;color:var(--text2)">';
+    html+='🔷 볼트 홀 '+nHoles+'개 통과 경로 — '+group.length+'건';
+    html+='</div>';
+
+    group.forEach(function(p, pi){
+      var isCrit=Math.abs(p.An-nc.minAn)<0.01;
+      var pNodes=p.pathNodes;
+      var pathStr=pNodes.map(function(nd){return nd.boltId;}).join(' → ');
+      var holeTerm=nHoles*r.dhole*s.t;
+      var corrTotal=p.corrTotal||0;
+      var An_calc=Math.max(s.Ag-holeTerm+corrTotal,0);
+
+      // 카드
+      html+='<div style="border:1px solid '+(isCrit?'var(--red)':'var(--border2)')+';';
+      html+='border-left:3px solid '+(isCrit?'var(--red)':'var(--blue)')+';';
+      html+='background:'+(isCrit?'rgba(248,81,73,0.06)':'rgba(255,255,255,0.01)')+';';
+      html+='border-radius:var(--radius);padding:10px 14px;margin-bottom:9px;';
+      html+='font-family:IBM Plex Mono,monospace;font-size:11px;line-height:1.9">';
+
+      // 경로 헤더
+      html+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px">';
+      html+='<span style="font-family:Space Grotesk,sans-serif;font-size:12px;font-weight:700;';
+      html+='color:'+(isCrit?'var(--red)':'var(--text2)')+'">('+(pi+1)+') '+pathStr+'</span>';
+      if(isCrit) html+='<span style="background:rgba(248,81,73,0.2);color:var(--red);padding:1px 8px;border-radius:3px;font-size:9px;font-weight:600">★ 임계경로 An,min</span>';
+      html+='</div>';
+
+      // 볼트 위치 정보
+      html+='<div style="font-size:9px;color:var(--text3);margin-bottom:6px">';
+      pNodes.forEach(function(nd,ni){
+        html+='<span style="color:'+rowColorByLetter(nd.rowLetter)+'"><b>'+nd.boltId+'</b></span>';
+        html+='(row='+nd.row_idx+', col='+(nd.col+1)+', x='+nd.x+', g='+nd.g+')';
+        if(ni<pNodes.length-1) html+=' → ';
+      });
+      html+='</div>';
+
+      // ── 공식 전개 ──
+      // 1행: 기호식
+      html+='<span class="fn">An = Ag − n×dhole×t';
+      if(corrTotal>0.01){
+        p.segDetails.forEach(function(sg){ if(sg.corr>0.01) html+=' + s²/(4g)×t'; });
+      }
+      html+='</span><br>';
+
+      // 2행: 대입
+      html+='&nbsp;&nbsp;= '+s.Ag+' − '+nHoles+'×'+r.dhole+'×'+s.t;
+      if(corrTotal>0.01){
+        p.segDetails.forEach(function(sg){
+          if(sg.corr>0.01) html+=' + '+sg.s+'²/(4×'+sg.g+')×'+s.t;
+        });
+      }
+      html+='<br>';
+
+      // 3행: 계산값
+      html+='&nbsp;&nbsp;= '+s.Ag+' − <span class="fv">'+holeTerm.toFixed(0)+'</span>';
+      if(corrTotal>0.01){
+        p.segDetails.forEach(function(sg){
+          if(sg.corr>0.01){
+            html+=' + <span class="fv">'+sg.corr.toFixed(2)+'</span>';
+          }
+        });
+        html+=' = '+s.Ag+'−'+holeTerm.toFixed(0)+'+'+corrTotal.toFixed(2);
+      }
+      html+='<br>';
+
+      // 4행: 결과
+      html+='&nbsp;&nbsp;= <span class="'+(isCrit?'fdim':'fres')+'" style="font-size:13px;font-weight:700">'+An_calc.toFixed(1)+' mm²</span>';
+
+      // 구간 상세 (보정 있을 때)
+      if(p.segDetails && p.segDetails.length>0){
+        var hasDetail = p.segDetails.some(function(sg){return sg.corr>0.01 || sg.s<0.1 || sg.g<0.1;});
+        if(hasDetail){
+          html+='<div style="margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-size:10px;color:var(--text3)">';
+          p.segDetails.forEach(function(sg){
+            html+='&nbsp;<b>'+sg.from+'→'+sg.to+'</b>: s='+sg.s+'mm, g差='+sg.g+'mm → ';
+            if(sg.g<0.1)       html+='직선(g差=0) → 보정없음<br>';
+            else if(sg.s<0.1)  html+='수직이동(s=0) → 보정없음<br>';
+            else                html+='s²/(4g)×t = '+sg.s+'²/(4×'+sg.g+')×'+s.t+' = <b style="color:var(--orange)">'+sg.corr.toFixed(2)+'mm²</b><br>';
+          });
+          html+='</div>';
+        }
+      }
+      html+='</div>';
+    });
+  });
+
+  // 임계경로 요약
+  if(nc.critPath){
+    html+='<div class="formula-block" style="border-left-color:var(--red);background:rgba(248,81,73,0.07);margin-top:8px">';
+    html+='<div class="ft" style="color:var(--red)">★ 임계 파단 경로 (An,min)</div>';
+    html+='경로: <span class="fdim" style="font-size:13px">'+nc.critPath.pathNodes.map(function(nd){return nd.boltId;}).join(' → ')+'</span><br>';
+    html+='An,min = <span class="fdim" style="font-size:16px;font-weight:700">'+nc.minAn.toFixed(1)+' mm²</span>';
+    html+='</div>';
+  }
+
+  // ④ 전단지연 U · Ae
+  html+='<div class="sub-title">④ 전단지연계수 U · 유효순단면적 Ae</div>';
+  var hRowForU=rows.filter(function(rw){return rw.type==='h';}).sort(function(a,b){return a.g-b.g;})[0];
+  var LconnDetail=0;
+  if(hRowForU) for(var i=1;i<hRowForU.bolts.length;i++) LconnDetail+=hRowForU.bolts[i].ep;
+  if(LconnDetail===0) LconnDetail=(hRowForU&&hRowForU.bolts[0])?hRowForU.bolts[0].ep:50;
+
+  html+='<div class="formula-block">';
+  if(connType==='double'){
+    html+='양면 접합 → U = <span class="fres">1.0</span> (전단지연 없음)';
+  } else {
+    html+='<span class="fn">U = 1 − (x̄ / Lconn)</span><br>';
+    html+='x̄(Cx)=<span class="fv">'+s.Cx+'mm</span> | Lconn=<span class="fv">'+LconnDetail+'mm</span><br>';
+    html+='U = 1−('+s.Cx+'/'+LconnDetail+') = <span class="fres">'+r.U.toFixed(4)+'</span>';
+  }
+  html+='<br><br><span class="fn">Ae = U × An,min</span><br>';
+  html+='Ae = '+r.U.toFixed(4)+' × '+nc.minAn.toFixed(1)+' = <span class="fres">'+r.Ae.toFixed(1)+' mm²</span>';
+  html+='</div>';
+
+  // ⑤ 블록전단 파단
+  html+='<div class="sub-title">⑤ 블록전단 파단 검토 (KDS 41 31 00: 4.1.9)</div>';
+  if (!r.blockShearH && !r.blockShearV) {
+    html+='<div class="formula-block" style="border-left-color:var(--text3)">검토 대상 볼트 행이 없습니다.</div>';
+  } else {
+    const renderBSReport = function(bs) {
+      if(!bs) return '';
+      var isGov = r.blockShearDetail && r.blockShearDetail.type === bs.type;
+      var titleText = bs.type==='h'?'수평 플랜지':'수직 플랜지';
+      var resText = '<div class="formula-block" style="border-left-color:'+(isGov?'var(--green)':'var(--border2)')+'; '+(!isGov?'opacity:0.7':'')+'">';
+      resText += '<div class="ft">'+titleText+' 블록전단 강도 '+(isGov?'[★지배]':'')+'</div>';
+      resText += '<span class="fn">Rn = min(0.6 × Fu × Anv + Ubs × Fu × Ant, &nbsp; 0.6 × Fy × Agv + Ubs × Fu × Ant)</span><br>';
+      resText += '• 전단면 치수: Lv='+bs.sumLv+'mm, nv='+bs.sumHolesVolts+'개 구멍 공제<br>';
+      resText += '&nbsp;&nbsp;Agv = Lv × t = '+bs.sumLv+' × '+s.t+' = '+bs.Agv.toFixed(0)+' mm²<br>';
+      resText += '&nbsp;&nbsp;Anv = (Lv - nv × dhole) × t = ('+bs.sumLv+' - '+bs.sumHolesVolts+' × '+r.dhole+') × '+s.t+' = '+bs.Anv.toFixed(0)+' mm²<br>';
+      resText += '• 인장면 치수: 안쪽행 게이지 g1='+bs.g1+'mm, Wt = B - g1 = '+s.B+' - '+bs.g1+' = '+bs.Wt+'mm, 구멍공제='+(bs.n-0.5)+'<br>';
+      resText += '&nbsp;&nbsp;Ant = (Wt - (n - 0.5) × dhole) × t = ('+bs.Wt+' - '+(bs.n-0.5)+' × '+r.dhole+') × '+s.t+' = '+bs.Ant.toFixed(0)+' mm²<br>';
+      resText += '• 한계강도 대입 (Ubs='+bs.Ubs.toFixed(1)+'):<br>';
+      resText += '&nbsp;&nbsp;1) 전단파단+인장파단 = 0.6 × '+r.Fu+' × '+bs.Anv.toFixed(0)+' + '+bs.Ubs.toFixed(1)+' × '+r.Fu+' × '+bs.Ant.toFixed(0)+' = <span class="fv">'+bs.Rn1.toFixed(0)+' N</span><br>';
+      resText += '&nbsp;&nbsp;2) 전단항복+인장파단 = 0.6 × '+r.Fy+' × '+bs.Agv.toFixed(0)+' + '+bs.Ubs.toFixed(1)+' × '+r.Fu+' × '+bs.Ant.toFixed(0)+' = <span class="fv">'+bs.Rn2.toFixed(0)+' N</span><br>';
+      resText += '• 공칭강도 Rn = min('+bs.Rn1.toFixed(0)+', '+bs.Rn2.toFixed(0)+') = '+bs.Rn.toFixed(0)+' N<br>';
+      resText += '• 설계강도 ΦRn = 0.75 × Rn = '+(bs.phiRn*1000).toFixed(0)+' N = '+bs.phiRn.toFixed(2)+' kN';
+      resText += '</div>';
+      return resText;
+    };
+    html += renderBSReport(r.blockShearH);
+    html += renderBSReport(r.blockShearV);
+  }
+
+  // ⑥ 강도 검토
+  html+='<div class="sub-title">⑥ 한계상태 설계강도 검토 및 최종 판정</div>';
+  html+='<div class="formula-block" style="border-left-color:var(--green)">';
+  html+='<div class="ft">LS① 총단면 항복</div>';
+  html+='<span class="fn">ΦPn1 = 0.9 × Fy × Ag</span><br>';
+  html+='&nbsp;= 0.9 × <span class="fv">'+r.Fy+'</span> × <span class="fv">'+s.Ag+'</span><br>';
+  html+='&nbsp;= <span class="fres">'+r.phiPn1.toFixed(2)+' kN</span>';
+  html+='</div>';
+  html+='<div class="formula-block" style="border-left-color:var(--orange)">';
+  html+='<div class="ft">LS② 순단면 파단</div>';
+  html+='<span class="fn">ΦPn2 = 0.75 × Fu × Ae</span><br>';
+  html+='&nbsp;= 0.75 × <span class="fv">'+r.Fu+'</span> × <span class="fv">'+r.Ae.toFixed(1)+'</span><br>';
+  html+='&nbsp;= <span class="fres">'+r.phiPn2.toFixed(2)+' kN</span>';
+  html+='</div>';
+  html+='<div class="formula-block" style="border-left-color:var(--purple)">';
+  html+='<div class="ft">LS③ 블록전단 파단</div>';
+  html+='<span class="fn">ΦPn3 = 0.75 × Rn</span><br>';
+  html+='&nbsp;= <span class="fres">'+r.phiPn3.toFixed(2)+' kN</span>';
+  html+='</div>';
+  html+='<div class="formula-block" style="border-left-color:var(--yellow)">';
+  html+='<div class="ft">지배 강도 · 최종 판정</div>';
+  html+='ΦPn = min('+r.phiPn1.toFixed(2)+', '+r.phiPn2.toFixed(2)+', '+r.phiPn3.toFixed(2)+') = <span class="fres" style="font-size:14px;font-weight:700">'+r.phiPn.toFixed(2)+' kN</span>';
+  html+=' ← <span class="fdim">'+r.governing+'</span><br>';
+  html+='D/C = '+r.Pu.toFixed(2)+'/'+r.phiPn.toFixed(2)+' = <span class="'+(r.ratio<=1?'fres':'fdim')+'" style="font-size:13px;font-weight:600">'+r.ratio.toFixed(4)+'</span><br><br>';
+  if(r.ratio<=1){
+    html+='<span class="fres" style="font-size:13px">✅ OK — ΦPn '+r.phiPn.toFixed(2)+'kN ≥ Pu '+r.Pu.toFixed(2)+'kN</span>';
+  } else {
+    html+='<span class="fdim" style="font-size:13px">❌ NG — ΦPn '+r.phiPn.toFixed(2)+'kN &lt; Pu '+r.Pu.toFixed(2)+'kN ('+(((r.Pu-r.phiPn)/r.Pu)*100).toFixed(1)+'% 부족)</span>';
+  }
+  html+='</div>';
+
+  document.getElementById('reportBody').innerHTML=html;
+  document.getElementById('reportModal').classList.add('open');
+}
+
+function closeReport(){document.getElementById('reportModal').classList.remove('open');}
+document.getElementById('reportModal').addEventListener('click',function(e){if(e.target===this)closeReport();});
+</script>
+</body>
+</html>
