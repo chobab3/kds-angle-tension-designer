@@ -840,19 +840,34 @@ function calcSection(sec, Pu_kN, boltDiam, grade){
 
   let blockShearDetail = null;
   if (blockShearH && blockShearV) {
-    if (blockShearH.phiRn < blockShearV.phiRn) {
-      phiPn3 = blockShearH.phiRn;
-      blockShearDetail = blockShearH;
-    } else {
-      phiPn3 = blockShearV.phiRn;
-      blockShearDetail = blockShearV;
-    }
+    const Agv_total = blockShearH.Agv + blockShearV.Agv;
+    const Anv_total = blockShearH.Anv + blockShearV.Anv;
+    const Ant_total = blockShearH.Ant + blockShearV.Ant;
+    const Ubs = 1.0;
+    const Rn1 = 0.6 * Fu * Anv_total + Ubs * Fu * Ant_total;
+    const Rn2 = 0.6 * Fy * Agv_total + Ubs * Fu * Ant_total;
+    const Rn = Math.min(Rn1, Rn2);
+    phiPn3 = 0.75 * Rn;
+
+    blockShearDetail = {
+      isCombined: true,
+      h: blockShearH,
+      v: blockShearV,
+      Agv: Agv_total,
+      Anv: Anv_total,
+      Ant: Ant_total,
+      Ubs: Ubs,
+      Rn1: Rn1,
+      Rn2: Rn2,
+      Rn: Rn,
+      phiRn: phiPn3
+    };
   } else if (blockShearH) {
     phiPn3 = blockShearH.phiRn;
-    blockShearDetail = blockShearH;
+    blockShearDetail = Object.assign({ isCombined: false }, blockShearH);
   } else if (blockShearV) {
     phiPn3 = blockShearV.phiRn;
-    blockShearDetail = blockShearV;
+    blockShearDetail = Object.assign({ isCombined: false }, blockShearV);
   }
 
   const phiPn = Math.min(phiPn1, phiPn2, phiPn3);
@@ -1378,37 +1393,67 @@ function openSectionDetail(rowIdx){
 
   // LS3 상세
   html+=`<div class="sub-title">③ 블록전단 파단 (Block Shear Rupture)</div>`;
-  if (!r2.blockShearH && !r2.blockShearV) {
+  if (!r2.blockShearDetail) {
     html+=`<div class="formula-block" style="border-left-color:var(--text3)">
       블록전단 검토 대상 볼트 행이 존재하지 않습니다.
     </div>`;
   } else {
-    const renderBSBlock = (bs) => {
-      if(!bs) return '';
-      const isGoverningBS = r2.blockShearDetail && r2.blockShearDetail.type === bs.type;
-      const isNG = (bs.phiRn) < Pu * 1000;
-      const def = isNG ? (((Pu * 1000) - bs.phiRn) / (Pu * 1000) * 100).toFixed(1) : null;
-      return `<div class="formula-block" style="border-left-color:${isGoverningBS ? (isNG ? 'var(--red)' : 'var(--green)') : 'var(--border2)'}; ${!isGoverningBS ? 'opacity: 0.7' : ''}">
-        <div class="ft">${bs.type==='h'?'수평 플랜지':'수직 플랜지'} 블록전단 강도 ${isGoverningBS ? '★지배' : ''}</div>
-        <span class="fn">Rn = min(0.6 × Fu × Anv + Ubs × Fu × Ant, &nbsp; 0.6 × Fy × Agv + Ubs × Fu × Ant)</span><br>
-        • 전단면적: Lv=${bs.sumLv}mm (행수 n=${bs.n}, 구멍 nv=${bs.sumHolesVolts})<br>
-        &nbsp;&nbsp; Agv = Lv × t = ${bs.sumLv} × ${s.t} = ${bs.Agv.toFixed(0)} mm²<br>
-        &nbsp;&nbsp; Anv = (Lv - nv × dhole) × t = (${bs.sumLv} - ${bs.sumHolesVolts} × ${r2.dhole}) × ${s.t} = ${bs.Anv.toFixed(0)} mm²<br>
-        • 인장면적: 안쪽행 게이지 g1=${bs.g1}mm (자유단 폭 Wt = B - g1 = ${s.B} - ${bs.g1} = ${bs.Wt}mm, 구멍공제 n-0.5=${bs.n-0.5})<br>
-        &nbsp;&nbsp; Ant = (Wt - (n - 0.5) × dhole) × t = (${bs.Wt} - ${bs.n - 0.5} × ${r2.dhole}) × ${s.t} = ${bs.Ant.toFixed(0)} mm²<br>
-        • 한계상태 식 대입 (Ubs=${bs.Ubs.toFixed(1)}):<br>
-        &nbsp;&nbsp; 1) 전단파단+인장파단 = 0.6 × Fu × Anv + Ubs × Fu × Ant<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 0.6 × ${r2.Fu} × ${bs.Anv.toFixed(0)} + ${bs.Ubs.toFixed(1)} \times ${r2.Fu} × ${bs.Ant.toFixed(0)} = <span class="fv">${bs.Rn1.toFixed(0)} N</span><br>
-        &nbsp;&nbsp; 2) 전단항복+인장파단 = 0.6 × Fy × Agv + Ubs × Fu × Ant<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 0.6 × ${r2.Fy} × ${bs.Agv.toFixed(0)} + ${bs.Ubs.toFixed(1)} \times ${r2.Fu} × ${bs.Ant.toFixed(0)} = <span class="fv">${bs.Rn2.toFixed(0)} N</span><br>
-        • 공칭강도 Rn = min(${bs.Rn1.toFixed(0)}, ${bs.Rn2.toFixed(0)}) = ${bs.Rn.toFixed(0)} N<br>
-        • 설계강도 ΦRn = 0.75 × Rn = ${bs.phiRn.toFixed(0)} N = ${bs.phiRn.toFixed(2)} kN<br>
-        ${isNG ? `<span class="fdim">✗ ${bs.phiRn.toFixed(2)} &lt; Pu ${Pu.toFixed(2)}kN → NG (${def}% 부족)</span>`
-             : `<span class="fres">✓ ${bs.phiRn.toFixed(2)} ≥ Pu ${Pu.toFixed(2)}kN → OK</span>`}
+    const bd = r2.blockShearDetail;
+    if (bd.isCombined) {
+      // 수평+수직 동시 파단 시 시각화
+      const isNG = bd.phiRn < Pu * 1000;
+      const def = isNG ? (((Pu * 1000) - bd.phiRn) / (Pu * 1000) * 100).toFixed(1) : null;
+      
+      html += `<div class="formula-block" style="border-left-color:${isNG ? 'var(--red)' : 'var(--green)'}">
+        <div class="ft">수평 + 수직 플랜지 동시 블록전단 파단 ★지배 (양면 접합)</div>
+        <span class="fn">Rn = min(0.6 × Fu × Anv,total + Ubs × Fu × Ant,total, &nbsp; 0.6 × Fy × Agv,total + Ubs × Fu × Ant,total)</span><br><br>
+        
+        <b style="color:var(--blue)">[수평 플랜지 기하학 성질]</b><br>
+        &nbsp;&nbsp;Lv,h = ${bd.h.sumLv}mm, nv,h = ${bd.h.sumHolesVolts}공제, Wt,h = ${bd.h.Wt}mm<br>
+        &nbsp;&nbsp;Agv,h = ${bd.h.Agv.toFixed(0)} mm², Anv,h = ${bd.h.Anv.toFixed(0)} mm², Ant,h = ${bd.h.Ant.toFixed(0)} mm²<br><br>
+        
+        <b style="color:var(--blue)">[수직 플랜지 기하학 성질]</b><br>
+        &nbsp;&nbsp;Lv,v = ${bd.v.sumLv}mm, nv,v = ${bd.v.sumHolesVolts}공제, Wt,v = ${bd.v.Wt}mm<br>
+        &nbsp;&nbsp;Agv,v = ${bd.v.Agv.toFixed(0)} mm², Anv,v = ${bd.v.Anv.toFixed(0)} mm², Ant,v = ${bd.v.Ant.toFixed(0)} mm²<br><br>
+        
+        <b style="color:var(--orange)">[합산 면적 (수평 + 수직)]</b><br>
+        &nbsp;&nbsp;Agv,total = Agv,h + Agv,v = ${bd.Agv.toFixed(0)} mm²<br>
+        &nbsp;&nbsp;Anv,total = Anv,h + Anv,v = ${bd.Anv.toFixed(0)} mm²<br>
+        &nbsp;&nbsp;Ant,total = Ant,h + Ant,v = ${bd.Ant.toFixed(0)} mm²<br><br>
+        
+        • 한계상태 식 대입 (Ubs = 1.0):<br>
+        &nbsp;&nbsp; 1) 전단파단+인장파단 = 0.6 × Fu × Anv,total + Ubs × Fu × Ant,total<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 0.6 × ${r2.Fu} × ${bd.Anv.toFixed(0)} + 1.0 × ${r2.Fu} × ${bd.Ant.toFixed(0)} = <span class="fv">${bd.Rn1.toFixed(0)} N</span><br>
+        &nbsp;&nbsp; 2) 전단항복+인장파단 = 0.6 × Fy × Agv,total + Ubs × Fu × Ant,total<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 0.6 × ${r2.Fy} × ${bd.Agv.toFixed(0)} + 1.0 × ${r2.Fu} × ${bd.Ant.toFixed(0)} = <span class="fv">${bd.Rn2.toFixed(0)} N</span><br>
+        • 공칭강도 Rn = min(${bd.Rn1.toFixed(0)}, ${bd.Rn2.toFixed(0)}) = ${bd.Rn.toFixed(0)} N<br>
+        • 설계강도 ΦRn = 0.75 × Rn = ${bd.phiRn.toFixed(0)} N = ${(bd.phiRn/1000).toFixed(2)} kN<br>
+        ${isNG ? `<span class="fdim">✗ ${(bd.phiRn/1000).toFixed(2)} &lt; Pu ${Pu.toFixed(2)}kN → NG (${def}% 부족)</span>`
+             : `<span class="fres">✓ ${(bd.phiRn/1000).toFixed(2)} ≥ Pu ${Pu.toFixed(2)}kN → OK</span>`}
       </div>`;
-    };
-    html += renderBSBlock(r2.blockShearH);
-    html += renderBSBlock(r2.blockShearV);
+    } else {
+      // 단일 플랜지 파단 시 기존 시각화
+      const isNG = bd.phiRn < Pu * 1000;
+      const def = isNG ? (((Pu * 1000) - bd.phiRn) / (Pu * 1000) * 100).toFixed(1) : null;
+      html += `<div class="formula-block" style="border-left-color:${isNG ? 'var(--red)' : 'var(--green)'}">
+        <div class="ft">${bd.type==='h'?'수평 플랜지':'수직 플랜지'} 블록전단 강도 ★지배</div>
+        <span class="fn">Rn = min(0.6 × Fu × Anv + Ubs × Fu × Ant, &nbsp; 0.6 × Fy × Agv + Ubs × Fu × Ant)</span><br>
+        • 전단면적: Lv=${bd.sumLv}mm (행수 n=${bd.n}, 구멍 nv=${bd.sumHolesVolts})<br>
+        &nbsp;&nbsp; Agv = Lv × t = ${bd.sumLv} × ${s.t} = ${bd.Agv.toFixed(0)} mm²<br>
+        &nbsp;&nbsp; Anv = (Lv - nv × dhole) × t = (${bd.sumLv} - ${bd.sumHolesVolts} × ${r2.dhole}) × ${s.t} = ${bd.Anv.toFixed(0)} mm²<br>
+        • 인장면적: 안쪽행 게이지 g1=${bd.g1}mm (자유단 폭 Wt = B - g1 = ${s.B} - ${bd.g1} = ${bd.Wt}mm, 구멍공제 n-0.5=${bd.n-0.5})<br>
+        &nbsp;&nbsp; Ant = (Wt - (n - 0.5) × dhole) × t = (${bd.Wt} - ${bd.n - 0.5} × ${r2.dhole}) × ${s.t} = ${bd.Ant.toFixed(0)} mm²<br>
+        • 한계상태 식 대입 (Ubs=${bd.Ubs.toFixed(1)}):<br>
+        &nbsp;&nbsp; 1) 전단파단+인장파단 = 0.6 × Fu × Anv + Ubs × Fu × Ant<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 0.6 × ${r2.Fu} × ${bd.Anv.toFixed(0)} + ${bd.Ubs.toFixed(1)} × ${r2.Fu} × ${bd.Ant.toFixed(0)} = <span class="fv">${bd.Rn1.toFixed(0)} N</span><br>
+        &nbsp;&nbsp; 2) 전단항복+인장파단 = 0.6 × Fy × Agv + Ubs × Fu × Ant<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 0.6 × ${r2.Fy} × ${bd.Agv.toFixed(0)} + ${bd.Ubs.toFixed(1)} × ${r2.Fu} × ${bd.Ant.toFixed(0)} = <span class="fv">${bd.Rn2.toFixed(0)} N</span><br>
+        • 공칭강도 Rn = min(${bd.Rn1.toFixed(0)}, ${bd.Rn2.toFixed(0)}) = ${bd.Rn.toFixed(0)} N<br>
+        • 설계강도 ΦRn = 0.75 × Rn = ${bd.phiRn.toFixed(0)} N = ${(bd.phiRn/1000).toFixed(2)} kN<br>
+        ${isNG ? `<span class="fdim">✗ ${(bd.phiRn/1000).toFixed(2)} &lt; Pu ${Pu.toFixed(2)}kN → NG (${def}% 부족)</span>`
+             : `<span class="fres">✓ ${(bd.phiRn/1000).toFixed(2)} ≥ Pu ${Pu.toFixed(2)}kN → OK</span>`}
+      </div>`;
+    }
   }
 
   // 지배 강도
@@ -1683,31 +1728,60 @@ function openReport(){
 
   // ⑤ 블록전단 파단
   html+='<div class="sub-title">⑤ 블록전단 파단 검토 (KDS 41 31 00: 4.1.9)</div>';
-  if (!r.blockShearH && !r.blockShearV) {
+  if (!r.blockShearDetail) {
     html+='<div class="formula-block" style="border-left-color:var(--text3)">검토 대상 볼트 행이 없습니다.</div>';
   } else {
-    const renderBSReport = function(bs) {
-      if(!bs) return '';
-      var isGov = r.blockShearDetail && r.blockShearDetail.type === bs.type;
-      var titleText = bs.type==='h'?'수평 플랜지':'수직 플랜지';
+    var bd = r.blockShearDetail;
+    if (bd.isCombined) {
+      // 수평+수직 동시 파단 시 보고서 출력
+      var isNG = bd.phiRn < r.Pu * 1000;
+      var def = isNG ? (((r.Pu * 1000) - bd.phiRn) / (r.Pu * 1000) * 100).toFixed(1) : null;
+      var resText = '<div class="formula-block" style="border-left-color:'+(isNG?'var(--red)':'var(--green)')+'">';
+      resText += '<div class="ft">수평 + 수직 플랜지 동시 블록전단 파단 [★지배] (양면 접합)</div>';
+      resText += '<span class="fn">Rn = min(0.6 × Fu × Anv,total + Ubs × Fu × Ant,total, &nbsp; 0.6 × Fy × Agv,total + Ubs × Fu × Ant,total)</span><br><br>';
+      
+      resText += '<b style="color:var(--blue)">[수평 플랜지 기하학 성질]</b><br>';
+      resText += '&nbsp;&nbsp;Lv,h='+bd.h.sumLv+'mm, nv,h='+bd.h.sumHolesVolts+'개 구멍 공제<br>';
+      resText += '&nbsp;&nbsp;Agv,h = '+bd.h.Agv.toFixed(0)+' mm², Anv,h = '+bd.h.Anv.toFixed(0)+' mm², Ant,h = '+bd.h.Ant.toFixed(0)+' mm²<br><br>';
+      
+      resText += '<b style="color:var(--blue)">[수직 플랜지 기하학 성질]</b><br>';
+      resText += '&nbsp;&nbsp;Lv,v='+bd.v.sumLv+'mm, nv,v='+bd.v.sumHolesVolts+'개 구멍 공제<br>';
+      resText += '&nbsp;&nbsp;Agv,v = '+bd.v.Agv.toFixed(0)+' mm², Anv,v = '+bd.v.Anv.toFixed(0)+' mm², Ant,v = '+bd.v.Ant.toFixed(0)+' mm²<br><br>';
+      
+      resText += '<b style="color:var(--orange)">[합산 면적 (수평 + 수직)]</b><br>';
+      resText += '&nbsp;&nbsp;Agv,total = Agv,h + Agv,v = '+bd.Agv.toFixed(0)+' mm²<br>';
+      resText += '&nbsp;&nbsp;Anv,total = Anv,h + Anv,v = '+bd.Anv.toFixed(0)+' mm²<br>';
+      resText += '&nbsp;&nbsp;Ant,total = Ant,h + Ant,v = '+bd.Ant.toFixed(0)+' mm²<br><br>';
+      
+      resText += '• 한계강도 대입 (Ubs = 1.0):<br>';
+      resText += '&nbsp;&nbsp;1) 전단파단+인장파단 = 0.6 × '+r.Fu+' × '+bd.Anv.toFixed(0)+' + 1.0 × '+r.Fu+' × '+bd.Ant.toFixed(0)+' = <span class="fv">'+bd.Rn1.toFixed(0)+' N</span><br>';
+      resText += '&nbsp;&nbsp;2) 전단항복+인장파단 = 0.6 × '+r.Fy+' × '+bd.Agv.toFixed(0)+' + 1.0 × '+r.Fu+' × '+bd.Ant.toFixed(0)+' = <span class="fv">'+bd.Rn2.toFixed(0)+' N</span><br>';
+      resText += '• 공칭강도 Rn = min('+bd.Rn1.toFixed(0)+', '+bd.Rn2.toFixed(0)+') = '+bd.Rn.toFixed(0)+' N<br>';
+      resText += '• 설계강도 ΦRn = 0.75 × Rn = '+bd.phiRn.toFixed(0)+' N = '+bd.phiRn.toFixed(2)+' kN';
+      resText += '</div>';
+      html += resText;
+    } else {
+      // 단일 플랜지 파단 시 보고서 출력
+      var isGov = r.blockShearDetail && r.blockShearDetail.type === bd.type;
+      var isNG = bd.phiRn < r.Pu * 1000;
+      var def = isNG ? (((r.Pu * 1000) - bd.phiRn) / (r.Pu * 1000) * 100).toFixed(1) : null;
+      var titleText = bd.type==='h'?'수평 플랜지':'수직 플랜지';
       var resText = '<div class="formula-block" style="border-left-color:'+(isGov?'var(--green)':'var(--border2)')+'; '+(!isGov?'opacity:0.7':'')+'">';
       resText += '<div class="ft">'+titleText+' 블록전단 강도 '+(isGov?'[★지배]':'')+'</div>';
       resText += '<span class="fn">Rn = min(0.6 × Fu × Anv + Ubs × Fu × Ant, &nbsp; 0.6 × Fy × Agv + Ubs × Fu × Ant)</span><br>';
-      resText += '• 전단면 치수: Lv='+bs.sumLv+'mm, nv='+bs.sumHolesVolts+'개 구멍 공제<br>';
-      resText += '&nbsp;&nbsp;Agv = Lv × t = '+bs.sumLv+' × '+s.t+' = '+bs.Agv.toFixed(0)+' mm²<br>';
-      resText += '&nbsp;&nbsp;Anv = (Lv - nv × dhole) × t = ('+bs.sumLv+' - '+bs.sumHolesVolts+' × '+r.dhole+') × '+s.t+' = '+bs.Anv.toFixed(0)+' mm²<br>';
-      resText += '• 인장면 치수: 안쪽행 게이지 g1='+bs.g1+'mm, Wt = B - g1 = '+s.B+' - '+bs.g1+' = '+bs.Wt+'mm, 구멍공제='+(bs.n-0.5)+'<br>';
-      resText += '&nbsp;&nbsp;Ant = (Wt - (n - 0.5) × dhole) × t = ('+bs.Wt+' - '+(bs.n-0.5)+' × '+r.dhole+') × '+s.t+' = '+bs.Ant.toFixed(0)+' mm²<br>';
-      resText += '• 한계강도 대입 (Ubs='+bs.Ubs.toFixed(1)+'):<br>';
-      resText += '&nbsp;&nbsp;1) 전단파단+인장파단 = 0.6 × '+r.Fu+' × '+bs.Anv.toFixed(0)+' + '+bs.Ubs.toFixed(1)+' × '+r.Fu+' × '+bs.Ant.toFixed(0)+' = <span class="fv">'+bs.Rn1.toFixed(0)+' N</span><br>';
-      resText += '&nbsp;&nbsp;2) 전단항복+인장파단 = 0.6 × '+r.Fy+' × '+bs.Agv.toFixed(0)+' + '+bs.Ubs.toFixed(1)+' × '+r.Fu+' × '+bs.Ant.toFixed(0)+' = <span class="fv">'+bs.Rn2.toFixed(0)+' N</span><br>';
-      resText += '• 공칭강도 Rn = min('+bs.Rn1.toFixed(0)+', '+bs.Rn2.toFixed(0)+') = '+bs.Rn.toFixed(0)+' N<br>';
-      resText += '• 설계강도 ΦRn = 0.75 × Rn = '+(bs.phiRn*1000).toFixed(0)+' N = '+bs.phiRn.toFixed(2)+' kN';
+      resText += '• 전단면 치수: Lv='+bd.sumLv+'mm, nv='+bd.sumHolesVolts+'개 구멍 공제<br>';
+      resText += '&nbsp;&nbsp;Agv = Lv × t = '+bd.sumLv+' × '+s.t+' = '+bd.Agv.toFixed(0)+' mm²<br>';
+      resText += '&nbsp;&nbsp;Anv = (Lv - nv × dhole) × t = ('+bd.sumLv+' - '+bd.sumHolesVolts+' × '+r.dhole+') × '+s.t+' = '+bd.Anv.toFixed(0)+' mm²<br>';
+      resText += '• 인장면 치수: 안쪽행 게이지 g1='+bd.g1+'mm, Wt = B - g1 = '+s.B+' - '+bd.g1+' = '+bd.Wt+'mm, 구멍공제='+(bd.n-0.5)+'<br>';
+      resText += '&nbsp;&nbsp;Ant = (Wt - (n - 0.5) × dhole) × t = ('+bd.Wt+' - '+(bd.n-0.5)+' × '+r.dhole+') × '+s.t+' = '+bd.Ant.toFixed(0)+' mm²<br>';
+      resText += '• 한계강도 대입 (Ubs='+bd.Ubs.toFixed(1)+'):<br>';
+      resText += '&nbsp;&nbsp;1) 전단파단+인장파단 = 0.6 × '+r.Fu+' × '+bd.Anv.toFixed(0)+' + '+bd.Ubs.toFixed(1)+' × '+r.Fu+' × '+bd.Ant.toFixed(0)+' = <span class="fv">'+bd.Rn1.toFixed(0)+' N</span><br>';
+      resText += '&nbsp;&nbsp;2) 전단항복+인장파단 = 0.6 × '+r.Fy+' × '+bd.Agv.toFixed(0)+' + '+bd.Ubs.toFixed(1)+' × '+r.Fu+' × '+bd.Ant.toFixed(0)+' = <span class="fv">'+bd.Rn2.toFixed(0)+' N</span><br>';
+      resText += '• 공칭강도 Rn = min('+bd.Rn1.toFixed(0)+', '+bd.Rn2.toFixed(0)+') = '+bd.Rn.toFixed(0)+' N<br>';
+      resText += '• 설계강도 ΦRn = 0.75 × Rn = '+bd.phiRn.toFixed(0)+' N = '+bd.phiRn.toFixed(2)+' kN';
       resText += '</div>';
-      return resText;
-    };
-    html += renderBSReport(r.blockShearH);
-    html += renderBSReport(r.blockShearV);
+      html += resText;
+    }
   }
 
   // ⑥ 강도 검토
