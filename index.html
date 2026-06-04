@@ -1033,6 +1033,7 @@ function runDesign(){
   const Pu = parseFloat(document.getElementById('Pu').value)||0;
   const boltDiam = parseInt(document.getElementById('boltDiam').value);
   const grade = document.getElementById('steelGrade').value;
+  const budget = parseFloat(document.getElementById('steelBudget')?.value) || 300000;
 
   let allResults=[], optimal=null, economic=null;
   for(const sec of SECTION_DB){
@@ -1040,7 +1041,9 @@ function runDesign(){
     allResults.push(res);
     if(res.pass){
       if(!optimal||sec.w<optimal.sec.w) optimal=res;
-      if(!economic||res.cpi<economic.cpi) economic=res;
+      if(res.cost <= budget){
+        if(!economic||res.cpi<economic.cpi) economic=res;
+      }
     }
   }
   lastResult = {optimal, economic, allResults, Pu, boltDiam, grade};
@@ -1361,13 +1364,15 @@ function renderResults(optimal,economic,allResults){
   const wOpt = wOptVal / 100;
   const wEco = wEcoVal / 100;
 
+  const budget = parseFloat(document.getElementById('steelBudget')?.value) || 300000;
   const validResults = allResults.filter(r2 => !r2.error && r2.pass);
   const avgCpi = validResults.length > 0
     ? validResults.reduce((sum, r2) => sum + r2.cpi, 0) / validResults.length
     : 0;
-  const minCpi = validResults.length > 0
-    ? Math.min(...validResults.map(r2 => r2.cpi))
-    : 0;
+  const validWithinBudget = validResults.filter(r2 => r2.cost <= budget);
+  const minCpi = validWithinBudget.length > 0
+    ? Math.min(...validWithinBudget.map(r2 => r2.cpi))
+    : (validResults.length > 0 ? Math.min(...validResults.map(r2 => r2.cpi)) : 0);
   const maxScore = validResults.length > 0
     ? Math.max(...validResults.map(r2 => {
         const optRate = r2.Pu / r2.phiPn;
@@ -1375,7 +1380,6 @@ function renderResults(optimal,economic,allResults){
         return optRate * wOpt + ecoRate * wEco;
       }))
     : 0;
-  const budget = parseFloat(document.getElementById('steelBudget')?.value) || 300000;
 
   let html=`<div style="padding-top:10px">
     <div class="optimal-banner">
@@ -1540,10 +1544,12 @@ function openSectionDetail(rowIdx){
   const wOpt = wOptVal / 100;
   const wEco = wEcoVal / 100;
 
+  const budget = parseFloat(document.getElementById('steelBudget')?.value) || 300000;
   const validResults = lastResult.allResults.filter(r3 => !r3.error && r3.pass);
-  const minCpi = validResults.length > 0
-    ? Math.min(...validResults.map(r3 => r3.cpi))
-    : 0;
+  const validWithinBudget = validResults.filter(r3 => r3.cost <= budget);
+  const minCpi = validWithinBudget.length > 0
+    ? Math.min(...validWithinBudget.map(r3 => r3.cpi))
+    : (validResults.length > 0 ? Math.min(...validResults.map(r3 => r3.cpi)) : 0);
   const maxScore = validResults.length > 0
     ? Math.max(...validResults.map(r3 => {
         const optRate = r3.Pu / r3.phiPn;
@@ -2271,8 +2277,12 @@ function openReport(){
   const wOpt = wOptVal / 100;
   const wEco = wEcoVal / 100;
 
+  const budget = parseFloat(document.getElementById('steelBudget')?.value) || 300000;
   const validResults = lastResult.allResults.filter(r3 => !r3.error && r3.pass);
-  const minCpi = validResults.length > 0 ? Math.min(...validResults.map(r3 => r3.cpi)) : 0;
+  const validWithinBudget = validResults.filter(r3 => r3.cost <= budget);
+  const minCpi = validWithinBudget.length > 0
+    ? Math.min(...validWithinBudget.map(r3 => r3.cpi))
+    : (validResults.length > 0 ? Math.min(...validResults.map(r3 => r3.cpi)) : 0);
   const optRate = r.Pu / r.phiPn;
   const ecoRate = r.cpi > 0 ? (minCpi / r.cpi) : 0;
   const overallScore = optRate * wOpt + ecoRate * wEco;
