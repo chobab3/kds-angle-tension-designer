@@ -1487,8 +1487,11 @@ function renderResults(optimal,economic,allResults){
     let statusText='<span class="ok">OK</span>';
     if(!r2.pass){
       statusText=`<span style="color:var(--red)" title="${ngReason}">NG ⚠</span>`;
-    } else if(isOpt){
-      statusText='<span class="ok">★ 최적</span>';
+    } else {
+      let parts=[];
+      if(isOpt) parts.push('<span style="color:var(--green);font-weight:600">★ 최적</span>');
+      if(isEco) parts.push('<span style="color:var(--blue);font-weight:600">★ 경제적</span>');
+      if(parts.length>0) statusText=parts.join(' / ');
     }
 
     html+=`<tr class="${rowClass}" style="cursor:pointer" title="더블클릭 → 상세 계산" ondblclick="openSectionDetail(${rowIdx})">
