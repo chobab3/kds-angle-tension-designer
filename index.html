@@ -156,6 +156,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
         <label>강재 단가 (원/kg)</label>
         <input type="number" id="steelPrice" value="1400" step="50" min="1" onchange="liveUpdate()">
       </div>
+      <div class="form-group">
+        <label>예산 (원)</label>
+        <input type="number" id="steelBudget" value="300000" step="10000" min="0" onchange="liveUpdate()">
+      </div>
     </div>
 
     <div class="section">
@@ -403,10 +407,10 @@ function liveDrawOnly(){
 
 // 입력 변경 시 즉각 도면 + 결과 유지
 function liveUpdate(){
-  liveDrawOnly();
+  runDesign();
 }
 
-function onBoltDiamChange(){ updateBoltLimitsInfo(); renderAllRows(); liveDrawOnly(); }
+function onBoltDiamChange(){ updateBoltLimitsInfo(); renderAllRows(); runDesign(); }
 
 function setConn(type){
   connType = type;
@@ -1335,6 +1339,7 @@ function renderResults(optimal,economic,allResults){
   const avgCpi = validResults.length > 0
     ? validResults.reduce((sum, r2) => sum + r2.cpi, 0) / validResults.length
     : 0;
+  const budget = parseFloat(document.getElementById('steelBudget')?.value) || 300000;
 
   let html=`<div style="padding-top:10px">
     <div class="optimal-banner">
@@ -1414,10 +1419,12 @@ function renderResults(optimal,economic,allResults){
 
     let ecoText='<span style="color:var(--text3)">—</span>';
     if(r2.pass){
+      const isOver = r2.cost > budget;
+      const suffix = isOver ? ' <span style="color:var(--red);font-weight:600;font-size:9px">(예산초과)</span>' : '';
       if(r2.cpi <= avgCpi){
-        ecoText='<span class="ok" style="color:var(--blue);font-weight:600">경제적</span>';
+        ecoText=`<span class="ok" style="color:var(--blue);font-weight:600">경제적</span>${suffix}`;
       } else {
-        ecoText='<span style="color:var(--orange);font-weight:600">비경제적</span>';
+        ecoText=`<span style="color:var(--orange);font-weight:600">비경제적</span>${suffix}`;
       }
     }
 
