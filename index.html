@@ -1388,10 +1388,10 @@ function renderResults(optimal,economic,allResults){
   <div class="table-wrap"><table><thead><tr>
     <th>단면</th><th>t</th><th>Ag</th><th>An,min</th><th>U</th><th>Ae</th>
     <th>ΦPn1</th><th>ΦPn2</th><th>ΦPn3</th><th>ΦPn</th><th>D/C</th>
-    <th>중량(kg/m)</th><th>비용(원)</th><th>CPI(원/kN)</th><th>판정</th>
+    <th>중량(kg/m)</th><th>비용(원)</th><th>CPI(원/kN)</th><th>경제적</th><th>판정</th>
   </tr></thead><tbody>`;
   allResults.forEach((r2,rowIdx)=>{
-    if(r2.error){html+=`<tr data-idx="${rowIdx}"><td>${r2.sec.name}</td><td colspan="15" style="color:var(--text3)">${r2.error}</td></tr>`;return;}
+    if(r2.error){html+=`<tr data-idx="${rowIdx}"><td>${r2.sec.name}</td><td colspan="16" style="color:var(--text3)">${r2.error}</td></tr>`;return;}
     const isOpt=optimal && r2.sec.name===optimal.sec.name;
     const isEco=economic && r2.sec.name===economic.sec.name;
     
@@ -1407,15 +1407,16 @@ function renderResults(optimal,economic,allResults){
       ngReason=minVal===r2.phiPn1?`총단면항복 부족 -${lack}%`:(minVal===r2.phiPn2?`순단면파단 부족 -${lack}%`:`블록전단 부족 -${lack}%`);
     }
 
+    let ecoText='<span style="color:var(--text3)">—</span>';
+    if(r2.pass && isEco){
+      ecoText='<span class="ok" style="color:var(--blue);font-weight:600">★ 경제적</span>';
+    }
+
     let statusText='<span class="ok">OK</span>';
     if(!r2.pass){
       statusText=`<span style="color:var(--red)" title="${ngReason}">NG ⚠</span>`;
-    } else if(isOpt && isEco){
-      statusText='<span class="ok" style="color:var(--purple);font-weight:600">★ 최적 & 경제적</span>';
     } else if(isOpt){
       statusText='<span class="ok">★ 최적</span>';
-    } else if(isEco){
-      statusText='<span class="ok" style="color:var(--blue);font-weight:600">★ 경제적</span>';
     }
 
     html+=`<tr class="${rowClass}" style="cursor:pointer" title="더블클릭 → 상세 계산" ondblclick="openSectionDetail(${rowIdx})">
@@ -1426,6 +1427,7 @@ function renderResults(optimal,economic,allResults){
       <td>${r2.unitWeight.toFixed(2)}</td>
       <td>${Math.round(r2.cost).toLocaleString()}</td>
       <td>${r2.cpi.toFixed(1)}</td>
+      <td>${ecoText}</td>
       <td>${statusText}</td>
     </tr>`;
   });
