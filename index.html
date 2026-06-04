@@ -2039,6 +2039,7 @@ function openReport(){
   html+='ΦPn = min('+r.phiPn1.toFixed(2)+', '+r.phiPn2.toFixed(2)+', '+r.phiPn3.toFixed(2)+') = <span class="fres" style="font-size:14px;font-weight:700">'+r.phiPn.toFixed(2)+' kN</span>';
   html+=' ← <span class="fdim">'+r.governing+'</span><br>';
   html+='D/C = '+r.Pu.toFixed(2)+'/'+r.phiPn.toFixed(2)+' = <span class="'+(r.ratio<=1?'fres':'fdim')+'" style="font-size:13px;font-weight:600">'+r.ratio.toFixed(4)+'</span><br><br>';
+  html+='• 비용-성능 지수 CPI = <span class="fv">'+r.cpi.toFixed(1)+' 원/kN</span> (재료비용 = '+Math.round(r.cost).toLocaleString()+'원)<br><br>';
   if(r.ratio<=1){
     html+='<span class="fres" style="font-size:13px">✅ OK — ΦPn '+r.phiPn.toFixed(2)+'kN ≥ Pu '+r.Pu.toFixed(2)+'kN</span>';
   } else {
@@ -2060,8 +2061,9 @@ function openReport(){
 
   html+='<div class="formula-block" style="border-left-color:var(--orange)">';
   html+='<div class="ft">비용-성능 지수 (Cost-Performance Index, CPI)</div>';
-  html+='<span class="fn">CPI = 재료비용(원) / 설계강도(kN)</span><br>';
-  html+='&nbsp;= '+Math.round(r.cost).toLocaleString()+' / '+r.phiPn.toFixed(2)+' = <span class="fres" style="font-size:14px;font-weight:700">'+r.cpi.toFixed(1)+' 원/kN</span><br>';
+  html+='<span class="fn">CPI = 재료비용 (원) / 설계지배강도 ΦPn (kN)</span><br>';
+  html+='&nbsp;= <span class="fv">' + Math.round(r.cost).toLocaleString() + ' 원</span> / <span class="fv">' + r.phiPn.toFixed(2) + ' kN</span><br>';
+  html+='&nbsp;= <span class="fres" style="font-size:14px;font-weight:700">' + r.cpi.toFixed(1) + ' 원/kN</span><br><br>';
   html+='<span class="fdim">* CPI가 낮을수록 설계 강도 대비 재료 효율성(경제성)이 높음을 의미합니다.</span>';
   html+='</div>';
 
