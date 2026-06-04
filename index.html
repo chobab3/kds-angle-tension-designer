@@ -1462,7 +1462,9 @@ function renderResults(optimal,economic,allResults){
     if(r2.pass){
       const isOver = r2.cost > budget;
       const suffix = isOver ? ' <span style="color:var(--red);font-weight:600;font-size:9px">(예산초과)</span>' : '';
-      if(r2.cpi <= avgCpi){
+      if(isEco){
+        ecoText=`<span class="ok" style="color:var(--blue);font-weight:700">⭐ 최저 CPI</span>${suffix}`;
+      } else if(r2.cpi <= avgCpi){
         ecoText=`<span class="ok" style="color:var(--blue);font-weight:600">경제적</span>${suffix}`;
       } else {
         ecoText=`<span style="color:var(--orange);font-weight:600">비경제적</span>${suffix}`;
@@ -1496,7 +1498,7 @@ function renderResults(optimal,economic,allResults){
       <td style="color:${r2.ratio>=1?'var(--green)':'var(--red)'}">${r2.ratio.toFixed(3)}</td>
       <td>${r2.unitWeight.toFixed(2)}</td>
       <td>${Math.round(r2.cost).toLocaleString()}</td>
-      <td>${r2.cpi.toFixed(1)}</td>
+      <td style="${isEco ? 'font-weight:700;color:var(--blue)' : ''}">${r2.pass && isEco ? `⭐ ${r2.cpi.toFixed(1)}` : r2.cpi.toFixed(1)}</td>
       <td>${ecoText}</td>
       <td>${optRateText}</td>
       <td>${ecoRateText}</td>
