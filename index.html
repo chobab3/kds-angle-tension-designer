@@ -1331,6 +1331,11 @@ function renderResults(optimal,economic,allResults){
   const r=optimal,s=r.sec,grade=lastResult.grade;
   const violCount=r.netCalc.violations.length;
 
+  const validResults = allResults.filter(r2 => !r2.error && r2.pass);
+  const avgCpi = validResults.length > 0
+    ? validResults.reduce((sum, r2) => sum + r2.cpi, 0) / validResults.length
+    : 0;
+
   let html=`<div style="padding-top:10px">
     <div class="optimal-banner">
       <span style="font-size:20px">✅</span>
@@ -1388,7 +1393,7 @@ function renderResults(optimal,economic,allResults){
   <div class="table-wrap"><table><thead><tr>
     <th>단면</th><th>t</th><th>Ag</th><th>An,min</th><th>U</th><th>Ae</th>
     <th>ΦPn1</th><th>ΦPn2</th><th>ΦPn3</th><th>ΦPn</th><th>D/C</th>
-    <th>중량(kg/m)</th><th>비용(원)</th><th>CPI(원/kN)</th><th>경제적</th><th>판정</th>
+    <th>중량(kg/m)</th><th>비용(원)</th><th>CPI(원/kN)</th><th>경제적 (평균: ${avgCpi.toFixed(1)})</th><th>판정</th>
   </tr></thead><tbody>`;
   allResults.forEach((r2,rowIdx)=>{
     if(r2.error){html+=`<tr data-idx="${rowIdx}"><td>${r2.sec.name}</td><td colspan="16" style="color:var(--text3)">${r2.error}</td></tr>`;return;}
@@ -1408,8 +1413,12 @@ function renderResults(optimal,economic,allResults){
     }
 
     let ecoText='<span style="color:var(--text3)">—</span>';
-    if(r2.pass && isEco){
-      ecoText='<span class="ok" style="color:var(--blue);font-weight:600">★ 경제적</span>';
+    if(r2.pass){
+      if(r2.cpi <= avgCpi){
+        ecoText='<span class="ok" style="color:var(--blue);font-weight:600">경제적</span>';
+      } else {
+        ecoText='<span style="color:var(--orange);font-weight:600">비경제적</span>';
+      }
     }
 
     let statusText='<span class="ok">OK</span>';
