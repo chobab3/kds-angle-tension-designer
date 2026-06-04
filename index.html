@@ -100,6 +100,8 @@ th{background:var(--bg3);border:1px solid var(--border);padding:4px 7px;color:va
 td{border:1px solid var(--border);padding:3px 7px;text-align:center;white-space:nowrap;}
 tr.critical-row td{background:rgba(248,81,73,.1);color:var(--red);font-weight:500;}
 tr.optimal-row td{background:rgba(63,185,80,.08);color:var(--green);}
+tr.economic-row td{background:rgba(56,139,253,.08);color:var(--blue);}
+tr.optimal-eco-row td{background:rgba(188,140,255,.08);color:var(--purple);}
 tr:hover td{background:rgba(255,255,255,.02);}
 
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;backdrop-filter:blur(4px);}
@@ -1007,16 +1009,19 @@ function runDesign(){
   const boltDiam = parseInt(document.getElementById('boltDiam').value);
   const grade = document.getElementById('steelGrade').value;
 
-  let allResults=[], optimal=null;
+  let allResults=[], optimal=null, economic=null;
   for(const sec of SECTION_DB){
     const res = calcSection(sec, Pu, boltDiam, grade);
     allResults.push(res);
-    if(res.pass&&(!optimal||sec.w<optimal.sec.w)) optimal=res;
+    if(res.pass){
+      if(!optimal||sec.w<optimal.sec.w) optimal=res;
+      if(!economic||res.cpi<economic.cpi) economic=res;
+    }
   }
-  lastResult = {optimal, allResults, Pu, boltDiam, grade};
+  lastResult = {optimal, economic, allResults, Pu, boltDiam, grade};
   drawFrontView(optimal);
   drawSideView(optimal);
-  renderResults(optimal, allResults);
+  renderResults(optimal, economic, allResults);
 }
 
 // ══════════════════════════════════════════
@@ -1317,7 +1322,7 @@ function drawSideView(res){
 // ══════════════════════════════════════════
 //  RESULTS
 // ══════════════════════════════════════════
-function renderResults(optimal,allResults){
+function renderResults(optimal,economic,allResults){
   const panel=document.getElementById('resultContent');
   if(!optimal){
     panel.innerHTML=`<div class="no-result">⚠ DB 내 모든 규격이 Pu=${lastResult.Pu}kN 불만족. 하중을 줄이거나 강종을 변경하세요.</div>`;
@@ -1387,14 +1392,33 @@ function renderResults(optimal,allResults){
   </tr></thead><tbody>`;
   allResults.forEach((r2,rowIdx)=>{
     if(r2.error){html+=`<tr data-idx="${rowIdx}"><td>${r2.sec.name}</td><td colspan="15" style="color:var(--text3)">${r2.error}</td></tr>`;return;}
-    const isOpt=r2.sec.name===optimal.sec.name;
+    const isOpt=optimal && r2.sec.name===optimal.sec.name;
+    const isEco=economic && r2.sec.name===economic.sec.name;
+    
+    let rowClass='';
+    if(isOpt && isEco) rowClass='optimal-eco-row';
+    else if(isOpt) rowClass='optimal-row';
+    else if(isEco) rowClass='economic-row';
+
     let ngReason='';
     if(!r2.pass){
       let minVal = Math.min(r2.phiPn1, r2.phiPn2, r2.phiPn3);
       const lack=((r2.Pu-minVal)/r2.Pu*100).toFixed(1);
       ngReason=minVal===r2.phiPn1?`총단면항복 부족 -${lack}%`:(minVal===r2.phiPn2?`순단면파단 부족 -${lack}%`:`블록전단 부족 -${lack}%`);
     }
-    html+=`<tr class="${isOpt?'optimal-row':''}" style="cursor:pointer" title="더블클릭 → 상세 계산" ondblclick="openSectionDetail(${rowIdx})">
+
+    let statusText='<span class="ok">OK</span>';
+    if(!r2.pass){
+      statusText=`<span style="color:var(--red)" title="${ngReason}">NG ⚠</span>`;
+    } else if(isOpt && isEco){
+      statusText='<span class="ok" style="color:var(--purple);font-weight:600">★ 최적 & 경제적</span>';
+    } else if(isOpt){
+      statusText='<span class="ok">★ 최적</span>';
+    } else if(isEco){
+      statusText='<span class="ok" style="color:var(--blue);font-weight:600">★ 경제적</span>';
+    }
+
+    html+=`<tr class="${rowClass}" style="cursor:pointer" title="더블클릭 → 상세 계산" ondblclick="openSectionDetail(${rowIdx})">
       <td>${r2.sec.name}</td><td>${r2.sec.t}</td><td>${r2.sec.Ag.toFixed(0)}</td>
       <td>${r2.An_min.toFixed(0)}</td><td>${r2.U.toFixed(3)}</td><td>${r2.Ae.toFixed(0)}</td>
       <td>${r2.phiPn1.toFixed(1)}</td><td>${r2.phiPn2.toFixed(1)}</td><td>${r2.phiPn3.toFixed(1)}</td><td>${r2.phiPn.toFixed(1)}</td>
@@ -1402,7 +1426,7 @@ function renderResults(optimal,allResults){
       <td>${r2.unitWeight.toFixed(2)}</td>
       <td>${Math.round(r2.cost).toLocaleString()}</td>
       <td>${r2.cpi.toFixed(1)}</td>
-      <td>${isOpt?'<span class="ok">★ 최적</span>':r2.pass?'<span class="ok">OK</span>':`<span style="color:var(--red)" title="${ngReason}">NG ⚠</span>`}</td>
+      <td>${statusText}</td>
     </tr>`;
   });
   html+=`</tbody></table></div></div>`;
