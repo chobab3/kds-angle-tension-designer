@@ -1528,14 +1528,14 @@ function openSectionDetail(rowIdx){
     let corrPartsD = [];
     if (cpD.segDetails) {
       cpD.segDetails.forEach(sg => {
-        if (sg.corr > 0.1) {
+        if (sg.corr > 0.01) {
           corrPartsD.push(`(${sg.s}²/(4×${sg.g})×${s.t})`);
           corrSumD += sg.corr;
         }
       });
     }
     const corrTextD = corrPartsD.length > 0 ? ' + ' + corrPartsD.join(' + ') : '';
-    const corrSumValTextD = corrSumD > 0.1 ? ` + <span class="fv">${corrSumD.toFixed(1)}mm²</span> (지그재그 보정)` : '';
+    const corrSumValTextD = corrSumD > 0.01 ? ` + <span class="fv">${corrSumD.toFixed(1)}mm²</span> (지그재그 보정)` : '';
     
     AnDetailHtml = `• 임계 파단 경로: <span class="fv">${cpD.label}</span> (구멍수 N = <span class="fv">${holesD}</span>개)<br>
     &nbsp;&nbsp; An = Ag − N × dhole × t + Σ[s²/(4g)×t]<br>
@@ -1644,9 +1644,9 @@ function openSectionDetail(rowIdx){
     ΦPn = min(${r2.phiPn1.toFixed(2)}, ${r2.phiPn2.toFixed(2)}, ${r2.phiPn3.toFixed(2)}) = <span class="${pass?'fres':'fdim'}">${r2.phiPn.toFixed(2)}kN</span>
     &nbsp; ← <span style="color:var(--yellow)">${r2.governing}</span><br>
     D/C = ${Pu.toFixed(2)}/${r2.phiPn.toFixed(2)} = <span class="${pass?'fres':'fdim'}">${r2.ratio.toFixed(4)}</span><br><br>
+    • 비용-성능 지수 CPI = <span class="fv">${r2.cpi.toFixed(1)} 원/kN</span> (재료비용 = ${Math.round(r2.cost).toLocaleString()}원)<br><br>
     ${pass
       ?`<span class="fres" style="font-size:13px">✅ OK — ΦPn ${r2.phiPn.toFixed(2)}kN ≥ Pu ${Pu.toFixed(2)}kN</span>`
-      :Reflect?`<span class="fdim" style="font-size:13px">❌ NG — ΦPn ${r2.phiPn.toFixed(2)}kN &lt; Pu ${Pu.toFixed(2)}kN (${((Pu-r2.phiPn)/Pu*100).toFixed(1)}% 부족)</span>`
       :`<span class="fdim" style="font-size:13px">❌ NG — ΦPn ${r2.phiPn.toFixed(2)}kN &lt; Pu ${Pu.toFixed(2)}kN (${((Pu-r2.phiPn)/Pu*100).toFixed(1)}% 부족)</span>`}
   </div>`;
 
@@ -1682,6 +1682,29 @@ function openSectionDetail(rowIdx){
       html+=`</div>`;
     });
   }
+
+  // ⑥ 설계 단면 경제성 평가 (정량적 평가)
+  const L_val = parseFloat(document.getElementById('L_member')?.value) || 3.0;
+  const price_val = parseFloat(document.getElementById('steelPrice')?.value) || 1400;
+
+  html+=`<div class="sub-title">⑥ 설계 단면 경제성 평가 (정량적 평가)</div>
+  <div class="formula-block" style="border-left-color:var(--green)">
+    <div class="ft">단위중량 및 재료비용 산정</div>
+    • 강재 밀도 = <span class="fv">7,850 kg/m³</span> | 단가 = <span class="fv">${price_val.toLocaleString()} 원/kg</span> | 부재 길이 = <span class="fv">${L_val} m</span><br>
+    • 단면적 Ag = <span class="fv">${s.Ag} mm²</span><br>
+    <span class="fn">단위중량 = Ag × 10⁻⁶ × 7,850</span><br>
+    &nbsp;= ${s.Ag} × 10⁻⁶ × 7,850 = <span class="fres">${r2.unitWeight.toFixed(3)} kg/m</span><br><br>
+    <span class="fn">재료비용 = 단위중량 × 부재길이(L) × 단가</span><br>
+    &nbsp;= ${r2.unitWeight.toFixed(3)} × ${L_val} × ${price_val} = <span class="fres">${Math.round(r2.cost).toLocaleString()} 원</span><br>
+  </div>
+  
+  <div class="formula-block" style="border-left-color:var(--orange)">
+    <div class="ft">비용-성능 지수 (Cost-Performance Index, CPI)</div>
+    <span class="fn">CPI = 재료비용 (원) / 설계지배강도 ΦPn (kN)</span><br>
+    &nbsp;= <span class="fv">${Math.round(r2.cost).toLocaleString()} 원</span> / <span class="fv">${r2.phiPn.toFixed(2)} kN</span><br>
+    &nbsp;= <span class="fres" style="font-size:14px;font-weight:700">${r2.cpi.toFixed(1)} 원/kN</span><br><br>
+    <span class="fdim">* CPI가 낮을수록 설계 강도 대비 재료 효율성(경제성)이 높음을 의미합니다.</span>
+  </div>`;
 
   document.getElementById('reportBody').innerHTML=html;
   document.getElementById('reportModal').classList.add('open');
