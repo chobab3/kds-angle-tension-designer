@@ -1546,6 +1546,9 @@ function openSectionDetail(rowIdx){
 
   const budget = parseFloat(document.getElementById('steelBudget')?.value) || 300000;
   const validResults = lastResult.allResults.filter(r3 => !r3.error && r3.pass);
+  const avgCpi = validResults.length > 0
+    ? validResults.reduce((sum, r3) => sum + r3.cpi, 0) / validResults.length
+    : 0;
   const validWithinBudget = validResults.filter(r3 => r3.cost <= budget);
   const minCpi = validWithinBudget.length > 0
     ? Math.min(...validWithinBudget.map(r3 => r3.cpi))
@@ -1574,21 +1577,50 @@ function openSectionDetail(rowIdx){
   const wEcoPercent = Math.round(wEco * 100);
   let formulaHtml = '';
   if (r2.pass) {
+    const isEco = lastResult.economic && r2.sec.name === lastResult.economic.sec.name;
+    const isOver = r2.cost > budget;
+    const suffix = isOver ? ' <span style="color:var(--red);font-weight:600;font-size:10px">(예산초과)</span>' : '';
+    let statusLabel = '';
+    let statusClass = '';
+    let statusExplain = '';
+    
+    if (isEco) {
+      statusLabel = '⭐ 최저 CPI (가성비 최우수)';
+      statusClass = 'fres';
+      statusExplain = `현재 단면의 CPI(${r2.cpi.toFixed(1)}원/kN)가 예산 범위 내 설계 통과 단면 중 최저치를 기록하였습니다.`;
+    } else if (r2.cpi <= avgCpi) {
+      statusLabel = '경제적';
+      statusClass = 'fres';
+      statusExplain = `현재 단면의 CPI(${r2.cpi.toFixed(1)}원/kN)가 설계 만족 단면들의 평균 CPI(${avgCpi.toFixed(1)}원/kN) 이하입니다.`;
+    } else {
+      statusLabel = '비경제적';
+      statusClass = 'fdim';
+      statusExplain = `현재 단면의 CPI(${r2.cpi.toFixed(1)}원/kN)가 설계 만족 단면들의 평균 CPI(${avgCpi.toFixed(1)}원/kN)를 초과합니다.`;
+    }
+
     formulaHtml = `
+  <div class="formula-block" style="border-left-color:var(--green);margin-bottom:14px">
+    <div class="ft">경제성 판정 기준 및 결과</div>
+    <span class="fn">판정 조건</span>: CPI ≤ 평균 CPI (${avgCpi.toFixed(1)} 원/kN) 이면 <b>[경제적]</b>, 초과 시 <b>[비경제적]</b><br>
+    &nbsp;&nbsp;• 현재 단면 CPI = 재료비용 (${Math.round(r2.cost).toLocaleString()}원) / 지배설계강도 (${r2.phiPn.toFixed(1)}kN) = <span class="fv">${r2.cpi.toFixed(1)} 원/kN</span><br>
+    &nbsp;&nbsp;• 판정 결과: <span class="${statusClass}" style="font-weight:700">${statusLabel}</span>${suffix}<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;(${statusExplain}${isOver ? ' 단, 총 재료 비용이 예산 한도를 초과하여 예산초과가 표시되었습니다.' : ''})
+  </div>
+
   <div class="formula-block" style="border-left-color:var(--purple);margin-bottom:14px">
     <div class="ft">종합 안정성 평가지표 산정 공식</div>
     <span class="fn">① 최적율 (Pu/Pn)</span> = 소요 인장력 Pu / 지배 설계강도 ΦPn<br>
     &nbsp;&nbsp;= ${Pu.toFixed(1)} kN / ${r2.phiPn.toFixed(1)} kN = <span class="fres">${optRateText}</span><br>
-    <span class="fn">② 경제율 (CPImin/CPI)</span> = 최소 CPI / 현재 CPI<br>
-    &nbsp;&nbsp;= ${minCpi.toFixed(1)} / ${r2.cpi.toFixed(1)} = <span class="fres">${ecoRateText}</span> (최소 CPI = ${minCpi.toFixed(1)} 원/kN)<br>
+    <span class="fn">② 경제율 (CPImin/CPI)</span> = 예산 내 최소 CPI / 현재 CPI<br>
+    &nbsp;&nbsp;= ${minCpi.toFixed(1)} / ${r2.cpi.toFixed(1)} = <span class="fres">${ecoRateText}</span> (기준 최소 CPI = ${minCpi.toFixed(1)} 원/kN)<br>
     <span class="fn">③ 안정성 (${wOptVal}:${wEcoVal})</span> = 최적율 × ${wOpt.toFixed(2)} + 경제율 × ${wEco.toFixed(2)}<br>
     &nbsp;&nbsp;= ${optRateText} × ${wOpt.toFixed(2)} + ${ecoRateText} × ${wEco.toFixed(2)} = <span class="fres" style="font-weight:700">${overallScoreText}</span>
   </div>`;
   } else {
     formulaHtml = `
   <div class="formula-block" style="border-left-color:var(--text3);margin-bottom:14px;opacity:0.7">
-    <div class="ft">종합 안정성 평가지표 산정 공식 (평가 제외)</div>
-    <span class="fdim">* 구조 강도 검토에서 NG(불만족)된 단면은 최적율 및 경제율 평가 대상에서 제외됩니다.</span>
+    <div class="ft">종합 안정성 및 경제성 평가지표 산정 공식 (평가 제외)</div>
+    <span class="fdim">* 구조 강도 검토에서 NG(불만족)된 단면은 최적율, 경제율 및 경제성(경제적/비경제적) 평가 대상에서 제외됩니다.</span>
   </div>`;
   }
 
