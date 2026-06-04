@@ -1339,6 +1339,16 @@ function renderResults(optimal,economic,allResults){
   const avgCpi = validResults.length > 0
     ? validResults.reduce((sum, r2) => sum + r2.cpi, 0) / validResults.length
     : 0;
+  const minCpi = validResults.length > 0
+    ? Math.min(...validResults.map(r2 => r2.cpi))
+    : 0;
+  const maxScore = validResults.length > 0
+    ? Math.max(...validResults.map(r2 => {
+        const optRate = r2.Pu / r2.phiPn;
+        const ecoRate = r2.cpi > 0 ? (minCpi / r2.cpi) : 0;
+        return optRate * 0.7 + ecoRate * 0.3;
+      }))
+    : 0;
   const budget = parseFloat(document.getElementById('steelBudget')?.value) || 300000;
 
   let html=`<div style="padding-top:10px">
@@ -1398,10 +1408,15 @@ function renderResults(optimal,economic,allResults){
   <div class="table-wrap"><table><thead><tr>
     <th>단면</th><th>t</th><th>Ag</th><th>An,min</th><th>U</th><th>Ae</th>
     <th>ΦPn1</th><th>ΦPn2</th><th>ΦPn3</th><th>ΦPn</th><th>D/C</th>
-    <th>중량(kg/m)</th><th>비용(원)</th><th>CPI(원/kN)</th><th>경제적 (평균: ${avgCpi.toFixed(1)})</th><th>판정</th>
+    <th>중량(kg/m)</th><th>비용(원)</th><th>CPI(원/kN)</th>
+    <th>경제적 (평균: ${avgCpi.toFixed(1)})</th>
+    <th>최적율 (Pu/ΦPn)</th>
+    <th>경제율 (CPImin/CPI)</th>
+    <th>종합 안정성 (70:30)</th>
+    <th>판정</th>
   </tr></thead><tbody>`;
   allResults.forEach((r2,rowIdx)=>{
-    if(r2.error){html+=`<tr data-idx="${rowIdx}"><td>${r2.sec.name}</td><td colspan="16" style="color:var(--text3)">${r2.error}</td></tr>`;return;}
+    if(r2.error){html+=`<tr data-idx="${rowIdx}"><td>${r2.sec.name}</td><td colspan="19" style="color:var(--text3)">${r2.error}</td></tr>`;return;}
     const isOpt=optimal && r2.sec.name===optimal.sec.name;
     const isEco=economic && r2.sec.name===economic.sec.name;
     
@@ -1428,6 +1443,19 @@ function renderResults(optimal,economic,allResults){
       }
     }
 
+    // 최적율, 경제율, 종합 안정성 계산
+    const optRate = r2.pass ? (r2.Pu / r2.phiPn) : 0;
+    const ecoRate = (r2.pass && r2.cpi > 0) ? (minCpi / r2.cpi) : 0;
+    const overallScore = r2.pass ? (optRate * 0.7 + ecoRate * 0.3) : 0;
+
+    const isBestScore = r2.pass && Math.abs(overallScore - maxScore) < 0.0001;
+
+    const optRateText = r2.pass ? optRate.toFixed(3) : '—';
+    const ecoRateText = r2.pass ? ecoRate.toFixed(3) : '—';
+    const overallScoreText = r2.pass
+      ? (isBestScore ? `👑 ${overallScore.toFixed(3)}` : overallScore.toFixed(3))
+      : '—';
+
     let statusText='<span class="ok">OK</span>';
     if(!r2.pass){
       statusText=`<span style="color:var(--red)" title="${ngReason}">NG ⚠</span>`;
@@ -1444,6 +1472,9 @@ function renderResults(optimal,economic,allResults){
       <td>${Math.round(r2.cost).toLocaleString()}</td>
       <td>${r2.cpi.toFixed(1)}</td>
       <td>${ecoText}</td>
+      <td>${optRateText}</td>
+      <td>${ecoRateText}</td>
+      <td style="font-weight:600;color:${r2.pass?(isBestScore?'var(--purple)':'var(--text)'):'var(--text3)'}">${overallScoreText}</td>
       <td>${statusText}</td>
     </tr>`;
   });
