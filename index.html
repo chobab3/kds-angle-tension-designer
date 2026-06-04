@@ -142,8 +142,12 @@ tr:hover td{background:rgba(255,255,255,.02);}
   <aside class="panel-left">
 
     <div class="section">
-      <div class="section-title">설계 인장력</div>
+      <div class="section-title">설계 인장력 & 안정성 가중치</div>
       <div class="form-group"><label>Pu — 계수 인장력 (kN)</label><input type="number" id="Pu" value="300" step="1" min="0" onchange="liveUpdate()"></div>
+      <div class="form-row">
+        <div class="form-group"><label>최적율 가중치 (%)</label><input type="number" id="weightOpt" value="70" step="5" min="0" max="100" onchange="adjustWeights('opt')"></div>
+        <div class="form-group"><label>경제율 가중치 (%)</label><input type="number" id="weightEco" value="30" step="5" min="0" max="100" onchange="adjustWeights('eco')"></div>
+      </div>
     </div>
 
     <div class="section">
@@ -408,6 +412,23 @@ function liveDrawOnly(){
 // 입력 변경 시 즉각 도면 + 결과 유지
 function liveUpdate(){
   runDesign();
+}
+
+function adjustWeights(changed){
+  const optInput = document.getElementById('weightOpt');
+  const ecoInput = document.getElementById('weightEco');
+  let opt = parseFloat(optInput.value) || 0;
+  let eco = parseFloat(ecoInput.value) || 0;
+  if(changed === 'opt'){
+    opt = Math.max(0, Math.min(100, opt));
+    optInput.value = opt;
+    ecoInput.value = 100 - opt;
+  } else {
+    eco = Math.max(0, Math.min(100, eco));
+    ecoInput.value = eco;
+    optInput.value = 100 - eco;
+  }
+  liveUpdate();
 }
 
 function onBoltDiamChange(){ updateBoltLimitsInfo(); renderAllRows(); runDesign(); }
@@ -1335,6 +1356,11 @@ function renderResults(optimal,economic,allResults){
   const r=optimal,s=r.sec,grade=lastResult.grade;
   const violCount=r.netCalc.violations.length;
 
+  const wOptVal = parseFloat(document.getElementById('weightOpt')?.value) || 70;
+  const wEcoVal = parseFloat(document.getElementById('weightEco')?.value) || 30;
+  const wOpt = wOptVal / 100;
+  const wEco = wEcoVal / 100;
+
   const validResults = allResults.filter(r2 => !r2.error && r2.pass);
   const avgCpi = validResults.length > 0
     ? validResults.reduce((sum, r2) => sum + r2.cpi, 0) / validResults.length
@@ -1346,7 +1372,7 @@ function renderResults(optimal,economic,allResults){
     ? Math.max(...validResults.map(r2 => {
         const optRate = r2.Pu / r2.phiPn;
         const ecoRate = r2.cpi > 0 ? (minCpi / r2.cpi) : 0;
-        return optRate * 0.7 + ecoRate * 0.3;
+        return optRate * wOpt + ecoRate * wEco;
       }))
     : 0;
   const budget = parseFloat(document.getElementById('steelBudget')?.value) || 300000;
@@ -1412,7 +1438,7 @@ function renderResults(optimal,economic,allResults){
     <th>경제적 (평균: ${avgCpi.toFixed(1)})</th>
     <th>최적율 (Pu/ΦPn)</th>
     <th>경제율 (CPImin/CPI)</th>
-    <th>안정성 (70:30)</th>
+    <th>안정성 (${wOptVal}:${wEcoVal})</th>
     <th>판정</th>
   </tr></thead><tbody>`;
   allResults.forEach((r2,rowIdx)=>{
@@ -1446,7 +1472,7 @@ function renderResults(optimal,economic,allResults){
     // 최적율, 경제율, 종합 안정성 계산
     const optRate = r2.pass ? (r2.Pu / r2.phiPn) : 0;
     const ecoRate = (r2.pass && r2.cpi > 0) ? (minCpi / r2.cpi) : 0;
-    const overallScore = r2.pass ? (optRate * 0.7 + ecoRate * 0.3) : 0;
+    const overallScore = r2.pass ? (optRate * wOpt + ecoRate * wEco) : 0;
 
     const isBestScore = r2.pass && Math.abs(overallScore - maxScore) < 0.0001;
 
@@ -1504,6 +1530,11 @@ function openSectionDetail(rowIdx){
   const lim=getLimits(d,s.t);
 
   // 최적율, 경제율, 안정성 계산
+  const wOptVal = parseFloat(document.getElementById('weightOpt')?.value) || 70;
+  const wEcoVal = parseFloat(document.getElementById('weightEco')?.value) || 30;
+  const wOpt = wOptVal / 100;
+  const wEco = wEcoVal / 100;
+
   const validResults = lastResult.allResults.filter(r3 => !r3.error && r3.pass);
   const minCpi = validResults.length > 0
     ? Math.min(...validResults.map(r3 => r3.cpi))
@@ -1512,13 +1543,13 @@ function openSectionDetail(rowIdx){
     ? Math.max(...validResults.map(r3 => {
         const optRate = r3.Pu / r3.phiPn;
         const ecoRate = r3.cpi > 0 ? (minCpi / r3.cpi) : 0;
-        return optRate * 0.7 + ecoRate * 0.3;
+        return optRate * wOpt + ecoRate * wEco;
       }))
     : 0;
 
   const optRate = r2.pass ? (r2.Pu / r2.phiPn) : 0;
   const ecoRate = (r2.pass && r2.cpi > 0) ? (minCpi / r2.cpi) : 0;
-  const overallScore = r2.pass ? (optRate * 0.7 + ecoRate * 0.3) : 0;
+  const overallScore = r2.pass ? (optRate * wOpt + ecoRate * wEco) : 0;
 
   const isBestScore = r2.pass && Math.abs(overallScore - maxScore) < 0.0001;
 
@@ -1527,6 +1558,28 @@ function openSectionDetail(rowIdx){
   const overallScoreText = r2.pass
     ? (isBestScore ? `👑 ${overallScore.toFixed(3)}` : overallScore.toFixed(3))
     : '—';
+
+  const wOptPercent = Math.round(wOpt * 100);
+  const wEcoPercent = Math.round(wEco * 100);
+  let formulaHtml = '';
+  if (r2.pass) {
+    formulaHtml = `
+  <div class="formula-block" style="border-left-color:var(--purple);margin-bottom:14px">
+    <div class="ft">종합 안정성 평가지표 산정 공식</div>
+    <span class="fn">① 최적율 (Pu/Pn)</span> = 소요 인장력 Pu / 지배 설계강도 ΦPn<br>
+    &nbsp;&nbsp;= ${Pu.toFixed(1)} kN / ${r2.phiPn.toFixed(1)} kN = <span class="fres">${optRateText}</span><br>
+    <span class="fn">② 경제율 (CPImin/CPI)</span> = 최소 CPI / 현재 CPI<br>
+    &nbsp;&nbsp;= ${minCpi.toFixed(1)} / ${r2.cpi.toFixed(1)} = <span class="fres">${ecoRateText}</span> (최소 CPI = ${minCpi.toFixed(1)} 원/kN)<br>
+    <span class="fn">③ 안정성 (${wOptVal}:${wEcoVal})</span> = 최적율 × ${wOpt.toFixed(2)} + 경제율 × ${wEco.toFixed(2)}<br>
+    &nbsp;&nbsp;= ${optRateText} × ${wOpt.toFixed(2)} + ${ecoRateText} × ${wEco.toFixed(2)} = <span class="fres" style="font-weight:700">${overallScoreText}</span>
+  </div>`;
+  } else {
+    formulaHtml = `
+  <div class="formula-block" style="border-left-color:var(--text3);margin-bottom:14px;opacity:0.7">
+    <div class="ft">종합 안정성 평가지표 산정 공식 (평가 제외)</div>
+    <span class="fdim">* 구조 강도 검토에서 NG(불만족)된 단면은 최적율 및 경제율 평가 대상에서 제외됩니다.</span>
+  </div>`;
+  }
 
   let html=`
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px 14px;
@@ -1568,10 +1621,11 @@ function openSectionDetail(rowIdx){
       <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--green)">${ecoRateText}</div>
     </div>
     <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;text-align:center">
-      <div style="font-size:9px;color:var(--text3);margin-bottom:3px">안정성 (70:30)</div>
+      <div style="font-size:9px;color:var(--text3);margin-bottom:3px">안정성 (${wOptVal}:${wEcoVal})</div>
       <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--purple)">${overallScoreText}</div>
     </div>
-  </div>`;
+  </div>
+  ${formulaHtml}`;
 
   if(!pass){
     html+=`<div style="background:rgba(248,81,73,.1);border:1px solid var(--red);border-radius:var(--radius);
@@ -2207,19 +2261,24 @@ function openReport(){
   html+='</div>';
 
   // ⑧ 종합 안정성 평가
+  const wOptVal = parseFloat(document.getElementById('weightOpt')?.value) || 70;
+  const wEcoVal = parseFloat(document.getElementById('weightEco')?.value) || 30;
+  const wOpt = wOptVal / 100;
+  const wEco = wEcoVal / 100;
+
   const validResults = lastResult.allResults.filter(r3 => !r3.error && r3.pass);
   const minCpi = validResults.length > 0 ? Math.min(...validResults.map(r3 => r3.cpi)) : 0;
   const optRate = r.Pu / r.phiPn;
   const ecoRate = r.cpi > 0 ? (minCpi / r.cpi) : 0;
-  const overallScore = optRate * 0.7 + ecoRate * 0.3;
+  const overallScore = optRate * wOpt + ecoRate * wEco;
 
   html+='<div class="sub-title">⑧ 종합 안정성 평가 (최적성 & 경제성 가중합산)</div>';
   html+='<div class="formula-block" style="border-left-color:var(--purple)">';
   html+='<div class="ft">최적율(구조최적성) 및 경제율(비용효율성) 산정</div>';
   html+='• 최적율 = Pu / ΦPn = '+r.Pu.toFixed(1)+' / '+r.phiPn.toFixed(1)+' = <span class="fres">'+optRate.toFixed(3)+'</span><br>';
   html+='• 경제율 = CPI_min / CPI = '+minCpi.toFixed(1)+' / '+r.cpi.toFixed(1)+' = <span class="fres">'+ecoRate.toFixed(3)+'</span> (전체 최소 CPI = '+minCpi.toFixed(1)+' 원/kN)<br><br>';
-  html+='<span class="fn">안정성 점수 = 최적율 × 0.7 + 경제율 × 0.3</span><br>';
-  html+='&nbsp;= '+optRate.toFixed(3)+' × 0.7 + '+ecoRate.toFixed(3)+' × 0.3 = <span class="fres" style="font-size:14px;font-weight:700">'+overallScore.toFixed(3)+'</span><br><br>';
+  html+='<span class="fn">안정성 점수 ('+wOptVal+':'+wEcoVal+') = 최적율 × '+wOpt.toFixed(2)+' + 경제율 × '+wEco.toFixed(2)+'</span><br>';
+  html+='&nbsp;= '+optRate.toFixed(3)+' × '+wOpt.toFixed(2)+' + '+ecoRate.toFixed(3)+' × '+wEco.toFixed(2)+' = <span class="fres" style="font-size:14px;font-weight:700">'+overallScore.toFixed(3)+'</span><br><br>';
   html+='<span class="fdim">* 안정성 점수가 높을수록 최적 단면설계(인장 강도 한계치 접근)와 경제성(재료비 대비 성능)을 모두 균형있게 달성했음을 나타냅니다.</span>';
   html+='</div>';
 
