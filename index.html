@@ -145,6 +145,18 @@ tr:hover td{background:rgba(255,255,255,.02);}
     </div>
 
     <div class="section">
+      <div class="section-title">경제성 변수 입력</div>
+      <div class="form-group">
+        <label>L — 부재 길이 (m)</label>
+        <input type="number" id="L_member" value="3.0" step="0.1" min="0.1" onchange="liveUpdate()">
+      </div>
+      <div class="form-group">
+        <label>강재 단가 (원/kg)</label>
+        <input type="number" id="steelPrice" value="1400" step="50" min="1" onchange="liveUpdate()">
+      </div>
+    </div>
+
+    <div class="section">
       <div class="section-title">볼트 제원 · 접합 방식</div>
       <div class="form-row">
         <div class="form-group">
@@ -972,9 +984,18 @@ function calcSection(sec, Pu_kN, boltDiam, grade){
   const ratio = Pu>0?phiPn/Pu:0;
   const governing = phiPn===phiPn1?'총단면 항복 지배':(phiPn===phiPn2?'순단면 파단 지배':'블록전단 파단 지배');
 
+  // 경제성 산정 (정량적 평가 지표)
+  const L_val = parseFloat(document.getElementById('L_member')?.value) || 3.0;
+  const price_val = parseFloat(document.getElementById('steelPrice')?.value) || 1400;
+  const unitWeight = sec.Ag * 0.00785; // Ag (mm^2) * 7850 (kg/m^3) * 10^-6 = Ag * 0.00785 (kg/m)
+  const cost = unitWeight * L_val * price_val;
+  const phiPn_kN = phiPn / 1000;
+  const cpi = phiPn_kN > 0 ? (cost / phiPn_kN) : 0;
+
   return{pass,sec,Fy,Fu,U,Lconn,An_min,Ae,
-    phiPn1:phiPn1/1000,phiPn2:phiPn2/1000,phiPn3:phiPn3 === Infinity ? 0 : phiPn3/1000,phiPn:phiPn/1000,Pu:Pu/1000,
-    ratio,governing,netCalc:nc,dhole:nc.dhole,blockShearDetail,blockShearH,blockShearV};
+    phiPn1:phiPn1/1000,phiPn2:phiPn2/1000,phiPn3:phiPn3 === Infinity ? 0 : phiPn3/1000,phiPn:phiPn_kN,Pu:Pu/1000,
+    ratio,governing,netCalc:nc,dhole:nc.dhole,blockShearDetail,blockShearH,blockShearV,
+    unitWeight,cost,cpi};
 }
 
 // ══════════════════════════════════════════
@@ -1312,7 +1333,8 @@ function renderResults(optimal,allResults){
         <div class="sname">${s.name}</div>
         <div style="font-size:10px;color:var(--text2);margin-top:2px">
           <span class="tag tag-g">최적 단면</span>
-          <span class="tag tag-o" style="margin-left:3px">w=${(s.w*1000).toFixed(2)}N/m</span>
+          <span class="tag tag-o" style="margin-left:3px">w=${r.unitWeight.toFixed(2)}kg/m</span>
+          <span class="tag tag-p" style="margin-left:3px;background:rgba(57,211,83,0.15);color:var(--green)">비용: ${Math.round(r.cost).toLocaleString()}원</span>
           <span class="tag tag-b" style="margin-left:3px">${grade}</span>
           <span class="tag tag-p" style="margin-left:3px">${connType==='single'?'일면':'양면'}</span>
           ${violCount>0?`<span class="tag" style="margin-left:3px;background:rgba(248,81,73,.15);color:var(--red)">⚠ KDS ${violCount}건</span>`:'<span class="tag tag-g" style="margin-left:3px">KDS OK</span>'}
@@ -1331,10 +1353,16 @@ function renderResults(optimal,allResults){
   html+=`<div class="result-grid">
     <div class="result-card"><div class="rc-label">Pu</div><div class="rc-value">${r.Pu.toFixed(1)}<span class="rc-unit">kN</span></div></div>
     <div class="result-card optimal"><div class="rc-label">ΦPn 지배강도</div><div class="rc-value">${r.phiPn.toFixed(1)}<span class="rc-unit">kN</span></div><div class="rc-check ok">D/C=${r.ratio.toFixed(3)}</div></div>
+    <div class="result-card"><div class="rc-label">Ag</div><div class="rc-value">${s.Ag.toFixed(0)}<span class="rc-unit">mm²</span></div></div>
+    
+    <!-- 경제성 평가 카드 신설 -->
+    <div class="result-card" style="border-left-color:var(--green)"><div class="rc-label">단위 중량</div><div class="rc-value">${r.unitWeight.toFixed(2)}<span class="rc-unit">kg/m</span></div></div>
+    <div class="result-card" style="border-left-color:var(--green)"><div class="rc-label">재료 비용</div><div class="rc-value" style="font-size:13px">${Math.round(r.cost).toLocaleString()}<span class="rc-unit">원</span></div></div>
+    <div class="result-card" style="border-left-color:var(--green)"><div class="rc-label">비용-성능 CPI</div><div class="rc-value" style="font-size:13px">${r.cpi.toFixed(1)}<span class="rc-unit">원/kN</span></div></div>
+    
     <div class="result-card"><div class="rc-label">ΦPn1 총단면항복</div><div class="rc-value">${r.phiPn1.toFixed(1)}<span class="rc-unit">kN</span></div><div class="rc-check ${r.phiPn===r.phiPn1?'warn':'info'}">${r.phiPn===r.phiPn1?'★ 지배':'—'}</div></div>
     <div class="result-card"><div class="rc-label">ΦPn2 순단면파단</div><div class="rc-value">${r.phiPn2.toFixed(1)}<span class="rc-unit">kN</span></div><div class="rc-check ${r.phiPn===r.phiPn2?'warn':'info'}">${r.phiPn===r.phiPn2?'★ 지배':'—'}</div></div>
     <div class="result-card"><div class="rc-label">ΦPn3 블록전단</div><div class="rc-value">${r.phiPn3.toFixed(1)}<span class="rc-unit">kN</span></div><div class="rc-check ${r.phiPn===r.phiPn3?'warn':'info'}">${r.phiPn===r.phiPn3?'★ 지배':'—'}</div></div>
-    <div class="result-card"><div class="rc-label">Ag</div><div class="rc-value">${s.Ag.toFixed(0)}<span class="rc-unit">mm²</span></div></div>
     <div class="result-card"><div class="rc-label">An,min</div><div class="rc-value">${r.An_min.toFixed(0)}<span class="rc-unit">mm²</span></div></div>
     <div class="result-card"><div class="rc-label">U 전단지연</div><div class="rc-value">${r.U.toFixed(4)}</div><div class="rc-check info">${connType==='double'?'양면=1.0':'일면'}</div></div>
     <div class="result-card"><div class="rc-label">Ae=U·An</div><div class="rc-value">${r.Ae.toFixed(0)}<span class="rc-unit">mm²</span></div></div>
@@ -1352,10 +1380,11 @@ function renderResults(optimal,allResults){
   </div>
   <div class="table-wrap"><table><thead><tr>
     <th>단면</th><th>t</th><th>Ag</th><th>An,min</th><th>U</th><th>Ae</th>
-    <th>ΦPn1</th><th>ΦPn2</th><th>ΦPn3</th><th>ΦPn</th><th>D/C</th><th>판정</th>
+    <th>ΦPn1</th><th>ΦPn2</th><th>ΦPn3</th><th>ΦPn</th><th>D/C</th>
+    <th>중량(kg/m)</th><th>비용(원)</th><th>CPI(원/kN)</th><th>판정</th>
   </tr></thead><tbody>`;
   allResults.forEach((r2,rowIdx)=>{
-    if(r2.error){html+=`<tr data-idx="${rowIdx}"><td>${r2.sec.name}</td><td colspan="12" style="color:var(--text3)">${r2.error}</td></tr>`;return;}
+    if(r2.error){html+=`<tr data-idx="${rowIdx}"><td>${r2.sec.name}</td><td colspan="15" style="color:var(--text3)">${r2.error}</td></tr>`;return;}
     const isOpt=r2.sec.name===optimal.sec.name;
     let ngReason='';
     if(!r2.pass){
@@ -1368,6 +1397,9 @@ function renderResults(optimal,allResults){
       <td>${r2.An_min.toFixed(0)}</td><td>${r2.U.toFixed(3)}</td><td>${r2.Ae.toFixed(0)}</td>
       <td>${r2.phiPn1.toFixed(1)}</td><td>${r2.phiPn2.toFixed(1)}</td><td>${r2.phiPn3.toFixed(1)}</td><td>${r2.phiPn.toFixed(1)}</td>
       <td style="color:${r2.ratio>=1?'var(--green)':'var(--red)'}">${r2.ratio.toFixed(3)}</td>
+      <td>${r2.unitWeight.toFixed(2)}</td>
+      <td>${Math.round(r2.cost).toLocaleString()}</td>
+      <td>${r2.cpi.toFixed(1)}</td>
       <td>${isOpt?'<span class="ok">★ 최적</span>':r2.pass?'<span class="ok">OK</span>':`<span style="color:var(--red)" title="${ngReason}">NG ⚠</span>`}</td>
     </tr>`;
   });
@@ -1408,6 +1440,21 @@ function openSectionDetail(rowIdx){
     <div style="margin-left:auto;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px">
       <div>Pu = <span style="color:var(--orange);font-size:14px;font-weight:600">${Pu.toFixed(1)} kN</span></div>
       <div>ΦPn = <span style="color:${pass?'var(--green)':'var(--red)'};font-size:14px;font-weight:600">${r2.phiPn.toFixed(1)} kN</span></div>
+    </div>
+  </div>
+  
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;text-align:center">
+      <div style="font-size:9px;color:var(--text3);margin-bottom:3px">단위 중량</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--text2)">${r2.unitWeight.toFixed(2)} <span style="font-size:9px;font-weight:normal">kg/m</span></div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;text-align:center">
+      <div style="font-size:9px;color:var(--text3);margin-bottom:3px">재료 비용</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--green)">${Math.round(r2.cost).toLocaleString()} <span style="font-size:9px;font-weight:normal">원</span></div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;text-align:center">
+      <div style="font-size:9px;color:var(--text3);margin-bottom:3px">비용-성능 CPI</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--orange)">${r2.cpi.toFixed(1)} <span style="font-size:9px;font-weight:normal">원/kN</span></div>
     </div>
   </div>`;
 
@@ -1647,6 +1694,8 @@ function openReport(){
   if(!lastResult||!lastResult.optimal) return;
   const r=lastResult.optimal, s=r.sec, d=lastResult.boltDiam, grade=lastResult.grade;
   const nc=r.netCalc;
+  const L = parseFloat(document.getElementById('L_member')?.value) || 3.0;
+  const price = parseFloat(document.getElementById('steelPrice')?.value) || 1400;
   let html='';
 
   const activeR = connType==='single'
@@ -1671,6 +1720,7 @@ function openReport(){
   html+='단면=<span class="fv">'+s.name+'</span> | t=<span class="fv">'+s.t+'mm</span> | Ag=<span class="fv">'+s.Ag+'mm²</span> | Cx=<span class="fv">'+s.Cx+'mm</span><br>';
   html+='강종=<span class="fv">'+grade+'</span> Fy=<span class="fv">'+r.Fy+'MPa</span> Fu=<span class="fv">'+r.Fu+'MPa</span> | M'+d+' dhole=<span class="fv">'+r.dhole+'mm</span><br>';
   html+='접합=<span class="fv">'+(connType==='single'?'일면':'양면')+'</span><br><br>';
+  html+='부재 길이 L = <span class="fv">'+L+' m</span> | 강재 단가 = <span class="fv">'+price.toLocaleString()+' 원/kg</span><br><br>';
   html+='<b style="color:var(--text2)">볼트 배치:</b><br>'+boltLayout;
   html+='</div>';
 
@@ -1994,6 +2044,25 @@ function openReport(){
   } else {
     html+='<span class="fdim" style="font-size:13px">❌ NG — ΦPn '+r.phiPn.toFixed(2)+'kN &lt; Pu '+r.Pu.toFixed(2)+'kN ('+(((r.Pu-r.phiPn)/r.Pu)*100).toFixed(1)+'% 부족)</span>';
   }
+  html+='</div>';
+
+  // ⑦ 경제성 평가
+  html+='<div class="sub-title">⑦ 설계 단면 경제성 평가 (정량적 평가)</div>';
+  html+='<div class="formula-block" style="border-left-color:var(--green)">';
+  html+='<div class="ft">단위중량 및 재료비용 산정</div>';
+  html+='• 강재 밀도 = <span class="fv">7,850 kg/m³</span> | 단가 = <span class="fv">'+price.toLocaleString()+' 원/kg</span> | 부재 길이 = <span class="fv">'+L+' m</span><br>';
+  html+='• 단면적 Ag = <span class="fv">'+s.Ag+' mm²</span><br>';
+  html+='<span class="fn">단위중량 = Ag × 10⁻⁶ × 7,850</span><br>';
+  html+='&nbsp;= '+s.Ag+' × 10⁻⁶ × 7,850 = <span class="fres">'+r.unitWeight.toFixed(3)+' kg/m</span><br><br>';
+  html+='<span class="fn">재료비용 = 단위중량 × 부재길이(L) × 단가</span><br>';
+  html+='&nbsp;= '+r.unitWeight.toFixed(3)+' × '+L+' × '+price+' = <span class="fres">'+Math.round(r.cost).toLocaleString()+' 원</span><br>';
+  html+='</div>';
+
+  html+='<div class="formula-block" style="border-left-color:var(--orange)">';
+  html+='<div class="ft">비용-성능 지수 (Cost-Performance Index, CPI)</div>';
+  html+='<span class="fn">CPI = 재료비용(원) / 설계강도(kN)</span><br>';
+  html+='&nbsp;= '+Math.round(r.cost).toLocaleString()+' / '+r.phiPn.toFixed(2)+' = <span class="fres" style="font-size:14px;font-weight:700">'+r.cpi.toFixed(1)+' 원/kN</span><br>';
+  html+='<span class="fdim">* CPI가 낮을수록 설계 강도 대비 재료 효율성(경제성)이 높음을 의미합니다.</span>';
   html+='</div>';
 
   document.getElementById('reportBody').innerHTML=html;
