@@ -1412,11 +1412,11 @@ function renderResults(optimal,economic,allResults){
     <th>경제적 (평균: ${avgCpi.toFixed(1)})</th>
     <th>최적율 (Pu/ΦPn)</th>
     <th>경제율 (CPImin/CPI)</th>
-    <th>종합 안정성 (70:30)</th>
+    <th>안정성 (70:30)</th>
     <th>판정</th>
   </tr></thead><tbody>`;
   allResults.forEach((r2,rowIdx)=>{
-    if(r2.error){html+=`<tr data-idx="${rowIdx}"><td>${r2.sec.name}</td><td colspan="19" style="color:var(--text3)">${r2.error}</td></tr>`;return;}
+    if(r2.error){html+=`<tr data-idx="${rowIdx}"><td>${r2.sec.name}</td><td colspan="18" style="color:var(--text3)">${r2.error}</td></tr>`;return;}
     const isOpt=optimal && r2.sec.name===optimal.sec.name;
     const isEco=economic && r2.sec.name===economic.sec.name;
     
@@ -1503,6 +1503,31 @@ function openSectionDetail(rowIdx){
   const puLinePos=(1/1.5*100).toFixed(1);
   const lim=getLimits(d,s.t);
 
+  // 최적율, 경제율, 안정성 계산
+  const validResults = lastResult.allResults.filter(r3 => !r3.error && r3.pass);
+  const minCpi = validResults.length > 0
+    ? Math.min(...validResults.map(r3 => r3.cpi))
+    : 0;
+  const maxScore = validResults.length > 0
+    ? Math.max(...validResults.map(r3 => {
+        const optRate = r3.Pu / r3.phiPn;
+        const ecoRate = r3.cpi > 0 ? (minCpi / r3.cpi) : 0;
+        return optRate * 0.7 + ecoRate * 0.3;
+      }))
+    : 0;
+
+  const optRate = r2.pass ? (r2.Pu / r2.phiPn) : 0;
+  const ecoRate = (r2.pass && r2.cpi > 0) ? (minCpi / r2.cpi) : 0;
+  const overallScore = r2.pass ? (optRate * 0.7 + ecoRate * 0.3) : 0;
+
+  const isBestScore = r2.pass && Math.abs(overallScore - maxScore) < 0.0001;
+
+  const optRateText = r2.pass ? optRate.toFixed(3) : '—';
+  const ecoRateText = r2.pass ? ecoRate.toFixed(3) : '—';
+  const overallScoreText = r2.pass
+    ? (isBestScore ? `👑 ${overallScore.toFixed(3)}` : overallScore.toFixed(3))
+    : '—';
+
   let html=`
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px 14px;
     background:${pass?'rgba(63,185,80,.07)':'rgba(248,81,73,.07)'};
@@ -1518,7 +1543,7 @@ function openSectionDetail(rowIdx){
     </div>
   </div>
   
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">
     <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;text-align:center">
       <div style="font-size:9px;color:var(--text3);margin-bottom:3px">단위 중량</div>
       <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--text2)">${r2.unitWeight.toFixed(2)} <span style="font-size:9px;font-weight:normal">kg/m</span></div>
@@ -1530,6 +1555,21 @@ function openSectionDetail(rowIdx){
     <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;text-align:center">
       <div style="font-size:9px;color:var(--text3);margin-bottom:3px">비용-성능 CPI</div>
       <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--orange)">${r2.cpi.toFixed(1)} <span style="font-size:9px;font-weight:normal">원/kN</span></div>
+    </div>
+  </div>
+  
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;text-align:center">
+      <div style="font-size:9px;color:var(--text3);margin-bottom:3px">최적율 (Pu/Pn)</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--text2)">${optRateText}</div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;text-align:center">
+      <div style="font-size:9px;color:var(--text3);margin-bottom:3px">경제율 (CPImin/CPI)</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--green)">${ecoRateText}</div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;text-align:center">
+      <div style="font-size:9px;color:var(--text3);margin-bottom:3px">안정성 (70:30)</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:var(--purple)">${overallScoreText}</div>
     </div>
   </div>`;
 
@@ -2164,6 +2204,23 @@ function openReport(){
   html+='&nbsp;= <span class="fv">' + Math.round(r.cost).toLocaleString() + ' 원</span> / <span class="fv">' + r.phiPn.toFixed(2) + ' kN</span><br>';
   html+='&nbsp;= <span class="fres" style="font-size:14px;font-weight:700">' + r.cpi.toFixed(1) + ' 원/kN</span><br><br>';
   html+='<span class="fdim">* CPI가 낮을수록 설계 강도 대비 재료 효율성(경제성)이 높음을 의미합니다.</span>';
+  html+='</div>';
+
+  // ⑧ 종합 안정성 평가
+  const validResults = lastResult.allResults.filter(r3 => !r3.error && r3.pass);
+  const minCpi = validResults.length > 0 ? Math.min(...validResults.map(r3 => r3.cpi)) : 0;
+  const optRate = r.Pu / r.phiPn;
+  const ecoRate = r.cpi > 0 ? (minCpi / r.cpi) : 0;
+  const overallScore = optRate * 0.7 + ecoRate * 0.3;
+
+  html+='<div class="sub-title">⑧ 종합 안정성 평가 (최적성 & 경제성 가중합산)</div>';
+  html+='<div class="formula-block" style="border-left-color:var(--purple)">';
+  html+='<div class="ft">최적율(구조최적성) 및 경제율(비용효율성) 산정</div>';
+  html+='• 최적율 = Pu / ΦPn = '+r.Pu.toFixed(1)+' / '+r.phiPn.toFixed(1)+' = <span class="fres">'+optRate.toFixed(3)+'</span><br>';
+  html+='• 경제율 = CPI_min / CPI = '+minCpi.toFixed(1)+' / '+r.cpi.toFixed(1)+' = <span class="fres">'+ecoRate.toFixed(3)+'</span> (전체 최소 CPI = '+minCpi.toFixed(1)+' 원/kN)<br><br>';
+  html+='<span class="fn">안정성 점수 = 최적율 × 0.7 + 경제율 × 0.3</span><br>';
+  html+='&nbsp;= '+optRate.toFixed(3)+' × 0.7 + '+ecoRate.toFixed(3)+' × 0.3 = <span class="fres" style="font-size:14px;font-weight:700">'+overallScore.toFixed(3)+'</span><br><br>';
+  html+='<span class="fdim">* 안정성 점수가 높을수록 최적 단면설계(인장 강도 한계치 접근)와 경제성(재료비 대비 성능)을 모두 균형있게 달성했음을 나타냅니다.</span>';
   html+='</div>';
 
   document.getElementById('reportBody').innerHTML=html;
