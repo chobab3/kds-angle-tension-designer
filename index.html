@@ -1370,9 +1370,11 @@ function renderResults(optimal,allResults){
     <div class="result-card"><div class="rc-label">dhole</div><div class="rc-value">${r.dhole}<span class="rc-unit">mm</span></div><div class="rc-check info">+(${lastResult.boltDiam<=22?2:3})</div></div>
   </div>
   <div class="formula-block" style="border-left-color:var(--yellow)">
-    <div class="ft">지배 한계상태</div>
+    <div class="ft">지배 한계상태 및 경제성</div>
     <span style="color:var(--orange)">▶ ${r.governing}</span><br>
-    ΦPn=min(${r.phiPn1.toFixed(1)},${r.phiPn2.toFixed(1)},${r.phiPn3.toFixed(1)})=<span style="color:var(--green);font-weight:500">${r.phiPn.toFixed(1)}kN</span> ≥ Pu=<span style="color:var(--orange)">${r.Pu.toFixed(1)}kN</span> → <span style="color:var(--green)">OK ✓</span>
+    ΦPn = min(${r.phiPn1.toFixed(1)}, ${r.phiPn2.toFixed(1)}, ${r.phiPn3.toFixed(1)}) = <span style="color:var(--green);font-weight:500">${r.phiPn.toFixed(1)}kN</span> ≥ Pu = <span style="color:var(--orange)">${r.Pu.toFixed(1)}kN</span> → <span style="color:var(--green)">OK ✓</span><br><br>
+    <span class="fn">비용-성능 지수 CPI = 재료비용(원) / ΦPn(kN)</span><br>
+    &nbsp;= <span class="fv">${Math.round(r.cost).toLocaleString()} 원</span> / <span class="fv">${r.phiPn.toFixed(1)} kN</span> = <span class="fres" style="color:var(--green);font-weight:600">${r.cpi.toFixed(1)} 원/kN</span>
   </div>
   <div class="sub-title">
     📊 전체 단면 검토
@@ -1644,7 +1646,8 @@ function openSectionDetail(rowIdx){
     ΦPn = min(${r2.phiPn1.toFixed(2)}, ${r2.phiPn2.toFixed(2)}, ${r2.phiPn3.toFixed(2)}) = <span class="${pass?'fres':'fdim'}">${r2.phiPn.toFixed(2)}kN</span>
     &nbsp; ← <span style="color:var(--yellow)">${r2.governing}</span><br>
     D/C = ${Pu.toFixed(2)}/${r2.phiPn.toFixed(2)} = <span class="${pass?'fres':'fdim'}">${r2.ratio.toFixed(4)}</span><br><br>
-    • 비용-성능 지수 CPI = <span class="fv">${r2.cpi.toFixed(1)} 원/kN</span> (재료비용 = ${Math.round(r2.cost).toLocaleString()}원)<br><br>
+    • 비용-성능 지수 CPI = 재료비용 (원) / 설계지배강도 ΦPn (kN)<br>
+    &nbsp;&nbsp;= <span class="fv">${Math.round(r2.cost).toLocaleString()} 원</span> / <span class="fv">${r2.phiPn.toFixed(2)} kN</span> = <span class="fres" style="font-weight:600">${r2.cpi.toFixed(1)} 원/kN</span><br><br>
     ${pass
       ?`<span class="fres" style="font-size:13px">✅ OK — ΦPn ${r2.phiPn.toFixed(2)}kN ≥ Pu ${Pu.toFixed(2)}kN</span>`
       :`<span class="fdim" style="font-size:13px">❌ NG — ΦPn ${r2.phiPn.toFixed(2)}kN &lt; Pu ${Pu.toFixed(2)}kN (${((Pu-r2.phiPn)/Pu*100).toFixed(1)}% 부족)</span>`}
